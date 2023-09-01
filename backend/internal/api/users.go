@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -50,8 +51,13 @@ func (a *api) handlePostUserLog(w http.ResponseWriter, r *http.Request) {
 		Message:   input.Message,
 		Timestamp: time.Now().UTC(),
 	}
-	a.emitUserLogEvent(userLogEvent)
+	go a.emitUserLogEvent(userLogEvent)
+	go storeUserLog(userLogEvent)
 	w.WriteHeader(http.StatusAccepted)
+}
+
+func (a *api) handleGetRecentLogs(w http.ResponseWriter, r *http.Request) {
+	a.respond(w, r, recentUserLogs)
 }
 
 type UserLogEvent struct {
@@ -61,12 +67,25 @@ type UserLogEvent struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-func (a *api) emitUserLogEvent(userLogEvent UserLogEvent) error {
+var recentUserLogs = make([]UserLogEvent, 0)
+var recentUserLogsLock sync.RWMutex
+var maxRecentLogs = 100
+
+func storeUserLog(event UserLogEvent) {
+	recentUserLogsLock.Lock()
+	defer recentUserLogsLock.Unlock()
+	recentUserLogs = append([]UserLogEvent{event}, recentUserLogs...)
+	if len(recentUserLogs) > maxRecentLogs {
+		recentUserLogs = recentUserLogs[:maxRecentLogs]
+	}
+}
+
+func (a *api) emitUserLogEvent(userLogEvent UserLogEvent) {
 	sseStr, err := formatServerSentEvent("user-log", userLogEvent)
 	if err != nil {
-		return err
+		a.logger.Error("error formatting sse event", "error", err)
+		return
 	}
 	bytes := []byte(sseStr)
 	a.broker.Notifier <- bytes
-	return nil
 }

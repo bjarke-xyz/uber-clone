@@ -79,46 +79,54 @@ func (a *api) handleGetSimulatedVehicles(w http.ResponseWriter, r *http.Request)
 
 func (a *api) updateVehiclePositionHandler(w http.ResponseWriter, r *http.Request) {
 	token, _ := TokenFromContext(r.Context())
+	vehicleIdStr := chi.URLParam(r, "vehicleID")
+	vehicleId, err := strconv.Atoi(vehicleIdStr)
+	if err != nil {
+		a.errorResponse(w, r, http.StatusBadRequest, fmt.Errorf("failed to parse vehicle id: %w", err))
+		return
+	}
 	input := &UpdateVehiclePositionInput{}
 	if err := json.NewDecoder(r.Body).Decode(input); err != nil {
 		a.errorResponse(w, r, http.StatusInternalServerError, fmt.Errorf("failed to decode body: %w", err))
 		return
 	}
-	err := input.Validate()
+	err = input.Validate()
 	if err != nil {
 		a.errorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	user, err := a.userRepo.GetByUserID(r.Context(), token.Subject)
-	if err != nil {
-		a.errorResponse(w, r, http.StatusInternalServerError, fmt.Errorf("failed to get user: %w", err))
-		return
-	}
-	vehicleIdStr := chi.URLParam(r, "vehicleID")
-	vehicleId, err := strconv.Atoi(vehicleIdStr)
-	if err != nil {
-		a.errorResponse(w, r, http.StatusInternalServerError, fmt.Errorf("failed to parse vehicle id: %w", err))
-		return
-	}
-	vehicle, err := a.vehicleRepo.GetByIdAndOwnerId(r.Context(), int64(vehicleId), user.ID)
-	if err != nil {
-		a.errorResponse(w, r, http.StatusInternalServerError, fmt.Errorf("failed to get vehicle: %w", err))
-		return
-	}
-	err = a.vehicleRepo.UpdatePosition(r.Context(), vehicle.ID, input.Lat, input.Lng)
-	if err != nil {
-		a.errorResponse(w, r, http.StatusInternalServerError, fmt.Errorf("failed to update position: %w", err))
-		return
-	}
-
-	a.emitPositionUpdateEvent(domain.VehiclePosition{
-		VehicleID:  vehicle.ID,
-		Lat:        input.Lat,
-		Lng:        input.Lng,
-		RecordedAt: time.Now(),
-		Bearing:    input.Bearing,
-		Speed:      input.Speed,
-	})
+	go func() {
+		ctx, cancel := context.WithDeadline(context.Background(), time.Now().UTC().Add(1*time.Second))
+		err := func() error {
+			user, err := a.userRepo.GetByUserID(ctx, token.Subject)
+			if err != nil {
+				cancel()
+				return fmt.Errorf("failed to get user: %w", err)
+			}
+			vehicle, err := a.vehicleRepo.GetByIdAndOwnerId(ctx, int64(vehicleId), user.ID)
+			if err != nil {
+				cancel()
+				return fmt.Errorf("failed to get vehicle %w", err)
+			}
+			err = a.vehicleRepo.UpdatePosition(ctx, vehicle.ID, input.Lat, input.Lng)
+			if err != nil {
+				cancel()
+				return fmt.Errorf("failed to update position: %w", err)
+			}
+			a.emitPositionUpdateEvent(domain.VehiclePosition{
+				VehicleID:  vehicle.ID,
+				Lat:        input.Lat,
+				Lng:        input.Lng,
+				RecordedAt: time.Now(),
+				Bearing:    input.Bearing,
+				Speed:      input.Speed,
+			})
+			return nil
+		}()
+		if err != nil {
+			a.logger.Error("updateVehiclePositionHandler had error", "error", err)
+		}
+	}()
 
 	w.WriteHeader(http.StatusAccepted)
 }

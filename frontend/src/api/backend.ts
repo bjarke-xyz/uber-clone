@@ -12,6 +12,10 @@ export class BackendApi {
   async getRideRequests(): Promise<RideRequest[]> {
     return fetch(`${baseUrl}/v1/sim-rides`).then((res) => res.json());
   }
+
+  async getRecentLogs(): Promise<LogEvent["data"][]> {
+    return fetch(`${baseUrl}/v1/sim/logs`).then((res) => res.json());
+  }
 }
 export const backendApi = new BackendApi();
 

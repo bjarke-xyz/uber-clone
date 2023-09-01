@@ -92,6 +92,7 @@ func (a *api) Routes() *chi.Mux {
 	})
 	r.Get("/v1/sim/events", a.handleEvents)
 	r.Get("/v1/sim-vehicles", a.handleGetSimulatedVehicles)
+	r.Get("/v1/sim/logs", a.handleGetRecentLogs)
 
 	r.Route("/v1/rides", func(r chi.Router) {
 		r.Use(a.firebaseJwtVerifier)

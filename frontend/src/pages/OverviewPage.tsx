@@ -49,7 +49,7 @@ function SideSection(props: PropsWithChildren<SideSectionProps>) {
   );
 }
 
-const maxLogLines = 10;
+const maxLogLines = 100;
 
 export function OverviewPage() {
   const mapRef = useRef<L.Map | null>(null);
@@ -69,6 +69,14 @@ export function OverviewPage() {
   const [eventMap, setEventMap] = useState<Record<number, PositionEvent>>({});
 
   const [logs, setLogs] = useState<LogEvent[]>([]);
+  useEffect(() => {
+    async function getData() {
+      const logs = await backendApi.getRecentLogs();
+      const logEvents: LogEvent[] = logs.map((x) => ({ data: x }));
+      setLogs(logEvents);
+    }
+    getData();
+  }, []);
 
   const vehiclesQuery = useQuery({
     queryKey: ["vehicles"],
