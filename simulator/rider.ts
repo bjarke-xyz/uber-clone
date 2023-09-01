@@ -1,17 +1,13 @@
-import { readFile } from "fs/promises";
-import path from "path";
+import { sample } from "lodash";
 import { BackendApi } from "./api";
-import { OSMAPI } from "./openstreetmap";
 import {
-  CityData,
   LatLng,
   NamedPoint,
   RideRequest,
   RideRequestState,
   cityDataFeatureToNamedPoints,
 } from "./types";
-import { randomIntFromInterval, wait } from "./util";
-import { sample } from "lodash";
+import { getCityData, randomIntFromInterval, wait } from "./util";
 
 export class SimRider {
   private currentRideRequest: RideRequest | null = null;
@@ -19,12 +15,8 @@ export class SimRider {
   private currentFrom: NamedPoint | null = null;
   private currentTo: NamedPoint | null = null;
 
-  private prevFrom: NamedPoint | null = null;
-  private prevTo: NamedPoint | null = null;
-
   constructor(
     private api: BackendApi,
-    private osm: OSMAPI,
     private userEmail: string,
     private userPassword: string,
     private city: string
@@ -35,58 +27,74 @@ export class SimRider {
   }
 
   public async run() {
-    this.selectRandomPoints();
-
-    await this.api.signIn(this.userEmail, this.userPassword);
-    const myAvailableRides = (await this.api.getMyRides()).filter(
-      (x) =>
-        x.state === RideRequestState.Available ||
-        x.state === RideRequestState.Accepted ||
-        x.state == RideRequestState.InProgress
-    );
-    if (myAvailableRides.length > 0) {
-      this.currentRideRequest = myAvailableRides[0];
-      this.currentFrom = {
-        location: new LatLng(
-          this.currentRideRequest.fromLat,
-          this.currentRideRequest.fromLng
-        ),
-        name: this.currentRideRequest.fromName,
-      };
-      this.currentTo = {
-        location: new LatLng(
-          this.currentRideRequest.toLat,
-          this.currentRideRequest.toLng
-        ),
-        name: this.currentRideRequest.toName,
-      };
-      await this.log(
-        `Found existing rider requested ride ${this.currentRideRequest.id}`
-      );
-    }
-
-    while (true) {
-      if (
-        !this.currentRideRequest ||
-        this.currentRideRequest.state === RideRequestState.Finished
-      ) {
-        const randomPoints = await this.selectRandomPoints(this.currentTo, 2);
-        if (randomPoints.length !== 2) {
-          console.log("failed to get 2 random points, waiting 10s...");
-          await wait(10 * 1000);
-          continue;
-        }
-        const [from, to] = randomPoints;
-        this.prevFrom = this.currentFrom;
-        this.prevTo = this.currentTo;
-        this.currentFrom = from;
-        this.currentTo = to;
-        await this.requestRide(from, to);
+    try {
+      await this.api.signIn(this.userEmail, this.userPassword);
+      const myAvailableRides = await this.getAvailableRides();
+      if (myAvailableRides.length > 0) {
+        await this.initializeExistingRideRequest(myAvailableRides);
       }
-      const randomWait = randomIntFromInterval(5, 30);
-      await wait(randomWait * 1000);
-      await this.updateRide();
+
+      while (true) {
+        if (this.needsRide()) {
+          const randomPoints = await this.selectRandomPoints(this.currentTo, 2);
+          if (randomPoints.length !== 2) {
+            console.log("failed to get 2 random points, waiting 10s...");
+            await wait(10 * 1000);
+            continue;
+          }
+          [this.currentFrom, this.currentTo] = randomPoints;
+          await this.requestRide(this.currentFrom, this.currentTo);
+        }
+        const randomWait = randomIntFromInterval(5, 30);
+        await wait(randomWait * 1000);
+        await this.updateRide();
+      }
+    } catch (error) {
+      console.error("Unexpected error in rider run", error);
     }
+  }
+
+  private needsRide(): boolean {
+    return (
+      !this.currentRideRequest ||
+      this.currentRideRequest.state === RideRequestState.Finished
+    );
+  }
+
+  private async initializeExistingRideRequest(
+    rideRequests: RideRequest[]
+  ): Promise<void> {
+    if (rideRequests.length === 0) {
+      return;
+    }
+    this.currentRideRequest = rideRequests[0];
+    this.currentFrom = {
+      location: new LatLng(
+        this.currentRideRequest.fromLat,
+        this.currentRideRequest.fromLng
+      ),
+      name: this.currentRideRequest.fromName,
+    };
+    this.currentTo = {
+      location: new LatLng(
+        this.currentRideRequest.toLat,
+        this.currentRideRequest.toLng
+      ),
+      name: this.currentRideRequest.toName,
+    };
+    await this.log(
+      `Found existing rider requested ride ${this.currentRideRequest.id}`
+    );
+  }
+
+  private async getAvailableRides() {
+    return (await this.api.getMyRides()).filter((x) =>
+      [
+        RideRequestState.Available,
+        RideRequestState.Accepted,
+        RideRequestState.InProgress,
+      ].includes(x.state)
+    );
   }
 
   private async updateRide() {
@@ -117,13 +125,7 @@ export class SimRider {
   ): Promise<NamedPoint[]> {
     if (numberOfPoints <= 0) return [];
     try {
-      const resource = `${this.city}_clean.geojson`;
-      const url = path.resolve(
-        __dirname,
-        `./data/random-city-data/${resource}`
-      );
-      const file = await readFile(url, { encoding: "utf-8" });
-      const cityData = JSON.parse(file) as CityData;
+      const cityData = await getCityData(this.city);
       if (cityData.features.length === 0) {
         return [];
       }

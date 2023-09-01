@@ -1,6 +1,5 @@
 import { Position, along, lineDistance, lineString } from "@turf/turf";
 import { BackendApi } from "./api";
-import { OSMAPI } from "./openstreetmap";
 import {
   BackendUser,
   LatLng,
@@ -28,7 +27,6 @@ export class SimDriver {
 
   constructor(
     private api: BackendApi,
-    private osm: OSMAPI,
     private userEmail: string,
     private userPassword: string
   ) {}
@@ -39,27 +37,31 @@ export class SimDriver {
   }
 
   public async run() {
-    await this.api.signIn(this.userEmail, this.userPassword);
-    const vehicle = await this.api.getVehicle();
-    this.user = await this.api.getMyUser();
-    if (!this.user) {
-      await this.log("user not found");
-      return;
-    }
-    if (!vehicle) {
-      await this.log(`no vehicle found`);
-      return;
-    }
-    if (vehicle.lastRecordedPosition) {
-      this.currentLocation = new LatLng(
-        vehicle.lastRecordedPosition.lat,
-        vehicle.lastRecordedPosition.lng
-      );
-    }
-    while (true) {
-      const randomWait = randomIntFromInterval(5, 15);
-      await wait(randomWait * 1000);
-      await this.drive(vehicle);
+    try {
+      await this.api.signIn(this.userEmail, this.userPassword);
+      const vehicle = await this.api.getVehicle();
+      this.user = await this.api.getMyUser();
+      if (!this.user) {
+        await this.log("user not found");
+        return;
+      }
+      if (!vehicle) {
+        await this.log(`no vehicle found`);
+        return;
+      }
+      if (vehicle.lastRecordedPosition) {
+        this.currentLocation = new LatLng(
+          vehicle.lastRecordedPosition.lat,
+          vehicle.lastRecordedPosition.lng
+        );
+      }
+      while (true) {
+        const randomWait = randomIntFromInterval(5, 15);
+        await wait(randomWait * 1000);
+        await this.drive(vehicle);
+      }
+    } catch (error) {
+      console.error("Unexpected error in driver run", error);
     }
   }
 

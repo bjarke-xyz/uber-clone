@@ -5,7 +5,6 @@ import morgan from "morgan";
 import "source-map-support/register";
 import { SimDriver } from "./driver";
 import { BackendApi } from "./api";
-import { osmApi } from "./openstreetmap";
 import { SimUser } from "./types";
 import { SimRider } from "./rider";
 
@@ -25,6 +24,7 @@ app.get("/", async (req: Request, res: Response) => {
 
 app.listen(port, () => {
   console.log(`⚡️[server]: Server is running at http://localhost:${port}`);
+  console.log(`using ${backendApiBaseUrl} as backend API`);
 });
 
 const simUsersStr = process.env.SIM_USERS ?? "[]";
@@ -34,7 +34,7 @@ const simDrivers = simUsers
   .filter((u) => !u.isRider)
   .map((user) => {
     const backendApi = new BackendApi(backendApiBaseUrl);
-    return new SimDriver(backendApi, osmApi, user.email, user.password);
+    return new SimDriver(backendApi, user.email, user.password);
   });
 simDrivers.forEach((driver) => driver.run());
 
@@ -42,12 +42,6 @@ const simRiders = simUsers
   .filter((u) => u.isRider)
   .map((user) => {
     const backendApi = new BackendApi(backendApiBaseUrl);
-    return new SimRider(
-      backendApi,
-      osmApi,
-      user.email,
-      user.password,
-      user.city
-    );
+    return new SimRider(backendApi, user.email, user.password, user.city);
   });
 simRiders.forEach((rider) => rider.run());

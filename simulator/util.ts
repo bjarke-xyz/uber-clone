@@ -1,3 +1,7 @@
+import path from "path";
+import { CityData } from "./types";
+import { readFile } from "fs/promises";
+
 export function wait(timeMs: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(() => resolve(), timeMs);
@@ -67,3 +71,11 @@ export const decodePolyline = (
   }
   return points;
 };
+
+export async function getCityData(city: string): Promise<CityData> {
+  const resource = `${city}_clean.geojson`;
+  const url = path.resolve(__dirname, `./data/random-city-data/${resource}`);
+  const file = await readFile(url, { encoding: "utf-8" });
+  const cityData = JSON.parse(file) as CityData;
+  return cityData;
+}
