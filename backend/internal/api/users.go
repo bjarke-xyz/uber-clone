@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"time"
-
-	"github.com/go-chi/render"
 )
 
 func (a *api) handleGetMyUser(w http.ResponseWriter, r *http.Request) {
@@ -16,7 +14,7 @@ func (a *api) handleGetMyUser(w http.ResponseWriter, r *http.Request) {
 		a.errorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	render.Respond(w, r, user)
+	a.respond(w, r, user)
 }
 
 func (a *api) handleGetSimUsers(w http.ResponseWriter, r *http.Request) {
@@ -25,7 +23,7 @@ func (a *api) handleGetSimUsers(w http.ResponseWriter, r *http.Request) {
 		a.errorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	render.Respond(w, r, users)
+	a.respond(w, r, users)
 }
 
 type PostUserLogInput struct {

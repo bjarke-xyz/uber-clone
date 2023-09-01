@@ -9,7 +9,6 @@ import (
 
 	"github.com/bjarke-xyz/uber-clone-backend/internal/domain"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/render"
 	validation "github.com/go-ozzo/ozzo-validation"
 	"github.com/samber/lo"
 )
@@ -26,7 +25,7 @@ func (a *api) handleGetMyRideRequests(w http.ResponseWriter, r *http.Request) {
 		a.errorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	render.Respond(w, r, rideRequests)
+	a.respond(w, r, rideRequests)
 }
 
 func (a *api) handleGetAvailableRideRequests(w http.ResponseWriter, r *http.Request) {
@@ -35,7 +34,7 @@ func (a *api) handleGetAvailableRideRequests(w http.ResponseWriter, r *http.Requ
 		a.errorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	render.Respond(w, r, rideRequests)
+	a.respond(w, r, rideRequests)
 }
 
 type CreateRideInput struct {
@@ -97,7 +96,7 @@ func (a *api) handleCreateRideRequest(w http.ResponseWriter, r *http.Request) {
 		a.errorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	render.Respond(w, r, rideReq)
+	a.respond(w, r, rideReq)
 }
 
 func (a *api) handleClaimRideRequest(w http.ResponseWriter, r *http.Request) {
@@ -196,7 +195,7 @@ func (a *api) handleGetRideDirections(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	render.Respond(w, r, directions)
+	a.respond(w, r, directions)
 }
 
 func (a *api) handleFinishRide(w http.ResponseWriter, r *http.Request) {
@@ -242,5 +241,5 @@ func (a *api) handleGetSimulatedRides(w http.ResponseWriter, r *http.Request) {
 		a.errorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	render.Respond(w, r, rides)
+	a.respond(w, r, rides)
 }

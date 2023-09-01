@@ -2,8 +2,6 @@ package api
 
 import (
 	"net/http"
-
-	"github.com/go-chi/render"
 )
 
 func (a *api) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
@@ -14,5 +12,5 @@ func (a *api) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		a.logger.Error("failed to get user", "error", err)
 	}
-	render.Respond(w, r, data)
+	a.respond(w, r, data)
 }

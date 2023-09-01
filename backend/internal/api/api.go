@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -126,6 +127,21 @@ type broker struct {
 
 	// Client connections registry
 	clients map[chan []byte]bool
+}
+
+func (a *api) respond(w http.ResponseWriter, r *http.Request, data any) {
+	a.respondStatus(w, r, http.StatusOK, data)
+}
+
+func (a *api) respondStatus(w http.ResponseWriter, r *http.Request, status int, data any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if data != nil {
+		err := json.NewEncoder(w).Encode(data)
+		if err != nil {
+			a.logger.Error("error sending response", "error", err)
+		}
+	}
 }
 
 func (broker *broker) listen(logger *slog.Logger) {

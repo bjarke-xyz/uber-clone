@@ -12,7 +12,6 @@ import (
 
 	"github.com/bjarke-xyz/uber-clone-backend/internal/domain"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/render"
 	validation "github.com/go-ozzo/ozzo-validation"
 )
 
@@ -33,7 +32,7 @@ func (a *api) getVehiclesHandler(w http.ResponseWriter, r *http.Request) {
 		a.errorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	render.Respond(w, r, vehicles)
+	a.respond(w, r, vehicles)
 }
 
 type GetSimulatedVehiclesResponse struct {
@@ -75,7 +74,7 @@ func (a *api) handleGetSimulatedVehicles(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	render.Respond(w, r, vehicles)
+	a.respond(w, r, vehicles)
 }
 
 func (a *api) updateVehiclePositionHandler(w http.ResponseWriter, r *http.Request) {
