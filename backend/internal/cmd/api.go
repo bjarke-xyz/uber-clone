@@ -3,18 +3,16 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
 
-	firebase "firebase.google.com/go/v4"
 	apiPkg "github.com/bjarke-xyz/uber-clone-backend/internal/api"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/cmdutil"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/service"
 	"github.com/joho/godotenv"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"golang.org/x/exp/slog"
-	"google.golang.org/api/option"
 )
 
 func APICmd(ctx context.Context) error {
@@ -32,21 +30,13 @@ func APICmd(ctx context.Context) error {
 	}
 	defer db.Close()
 
-	credentialsJson := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS_CONTENT")
-	credentialsJsonBytes := []byte(credentialsJson)
-	opt := option.WithCredentialsJSON(credentialsJsonBytes)
-	app, err := firebase.NewApp(ctx, nil, opt)
-	if err != nil {
-		return fmt.Errorf("error initializing app: %w", err)
-	}
-
 	osrApiKey := os.Getenv("OSR_API_KEY")
 	if osrApiKey == "" {
 		return fmt.Errorf("OSR_API_KEY environment variable was empty")
 	}
 	osrClient := service.NewOpenRouteServiceClient(osrApiKey)
 
-	api := apiPkg.NewAPI(ctx, logger, db, app, osrClient)
+	api := apiPkg.NewAPI(ctx, logger, db, osrClient)
 	srv := api.Server(port)
 
 	// metrics server

@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 
-	firebase "firebase.google.com/go/v4"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/domain"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/repository"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/service"
@@ -16,7 +16,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"golang.org/x/exp/slog"
 )
 
 var (
@@ -34,8 +33,6 @@ var (
 type api struct {
 	logger *slog.Logger
 
-	app *firebase.App
-
 	userRepo    domain.UserRepository
 	vehicleRepo domain.VehicleRepository
 	rideRepo    domain.RideRepository
@@ -45,7 +42,7 @@ type api struct {
 	broker *broker
 }
 
-func NewAPI(ctx context.Context, logger *slog.Logger, pool *pgxpool.Pool, app *firebase.App, osrClient *service.OpenRouteServiceClient) *api {
+func NewAPI(ctx context.Context, logger *slog.Logger, pool *pgxpool.Pool, osrClient *service.OpenRouteServiceClient) *api {
 	userRepo := repository.NewPostgresUser(pool)
 	vehicleRepo := repository.NewPostgresVehicle(pool)
 	rideRepo := repository.NewPostgresRide(pool)
@@ -60,7 +57,6 @@ func NewAPI(ctx context.Context, logger *slog.Logger, pool *pgxpool.Pool, app *f
 
 	return &api{
 		logger:      logger,
-		app:         app,
 		userRepo:    userRepo,
 		vehicleRepo: vehicleRepo,
 		rideRepo:    rideRepo,
