@@ -44,6 +44,10 @@ func (a *api) handlePostUserLog(w http.ResponseWriter, r *http.Request) {
 		a.errorResponse(w, r, http.StatusInternalServerError, err)
 		return
 	}
+	if !user.Simulated {
+		a.errorResponse(w, r, http.StatusBadRequest, fmt.Errorf("only simulated users can POST logs"))
+		return
+	}
 
 	userLogEvent := UserLogEvent{
 		UserID:    user.ID,
@@ -74,6 +78,7 @@ var maxRecentLogs = 100
 func storeUserLog(event UserLogEvent) {
 	recentUserLogsLock.Lock()
 	defer recentUserLogsLock.Unlock()
+	// prepend
 	recentUserLogs = append([]UserLogEvent{event}, recentUserLogs...)
 	if len(recentUserLogs) > maxRecentLogs {
 		recentUserLogs = recentUserLogs[:maxRecentLogs]
