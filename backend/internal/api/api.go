@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/bjarke-xyz/uber-clone-backend/internal/auth"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/cfg"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/domain"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/repository"
@@ -36,6 +37,8 @@ type api struct {
 	logger *slog.Logger
 	cfg    *cfg.Cfg
 
+	authClient auth.AuthClient
+
 	userRepo    domain.UserRepository
 	vehicleRepo domain.VehicleRepository
 	rideRepo    domain.RideRepository
@@ -45,7 +48,7 @@ type api struct {
 	broker *broker
 }
 
-func NewAPI(ctx context.Context, logger *slog.Logger, cfg *cfg.Cfg, pool *pgxpool.Pool, osrClient *service.OpenRouteServiceClient) *api {
+func NewAPI(ctx context.Context, logger *slog.Logger, cfg *cfg.Cfg, authClient auth.AuthClient, pool *pgxpool.Pool, osrClient *service.OpenRouteServiceClient) *api {
 	userRepo := repository.NewPostgresUser(pool)
 	vehicleRepo := repository.NewPostgresVehicle(pool)
 	rideRepo := repository.NewPostgresRide(pool)
@@ -61,6 +64,7 @@ func NewAPI(ctx context.Context, logger *slog.Logger, cfg *cfg.Cfg, pool *pgxpoo
 	return &api{
 		logger:      logger,
 		cfg:         cfg,
+		authClient:  authClient,
 		userRepo:    userRepo,
 		vehicleRepo: vehicleRepo,
 		rideRepo:    rideRepo,

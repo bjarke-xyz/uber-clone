@@ -3,13 +3,14 @@ package api
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/bjarke-xyz/uber-clone-backend/internal/auth"
 )
 
 func (a *api) firebaseJwtVerifier(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		idTokenStr := auth.TokenFromHeader(r)
+		idTokenStr := tokenFromHeader(r)
 		if idTokenStr == "" {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
@@ -17,8 +18,9 @@ func (a *api) firebaseJwtVerifier(next http.Handler) http.Handler {
 
 		ctx := r.Context()
 
-		token, err := auth.ValidateToken(ctx, a.cfg.FirebaseProjectId, idTokenStr)
+		token, err := a.authClient.ValidateToken(ctx, &auth.ValidateTokenRequest{Token: idTokenStr})
 		if err != nil {
+			a.logger.Warn("error validating token", "error", err)
 			a.errorResponse(w, r, http.StatusUnauthorized, err)
 			return
 		}
@@ -46,4 +48,12 @@ func TokenFromContext(ctx context.Context) (*auth.AuthToken, error) {
 	var err error
 	err, _ = ctx.Value(ErrorCtxKey).(error)
 	return token, err
+}
+
+func tokenFromHeader(r *http.Request) string {
+	authHeader := r.Header.Get("Authorization")
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		return authHeader[7:]
+	}
+	return ""
 }

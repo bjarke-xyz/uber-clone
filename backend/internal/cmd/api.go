@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -13,6 +14,8 @@ import (
 	"github.com/bjarke-xyz/uber-clone-backend/internal/service"
 	"github.com/joho/godotenv"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func APICmd(ctx context.Context) error {
@@ -33,9 +36,16 @@ func APICmd(ctx context.Context) error {
 
 	osrClient := service.NewOpenRouteServiceClient(cfg.OSRApiKey)
 
-	auth.WarmCache(ctx)
+	opts := []grpc.DialOption{}
+	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(cfg.AuthGrpcUrl, opts...)
+	if err != nil {
+		return fmt.Errorf("failed to dial auth grpc: %w", err)
+	}
+	defer conn.Close()
+	authClient := auth.NewAuthClient(conn)
 
-	api := apiPkg.NewAPI(ctx, logger, cfg, db, osrClient)
+	api := apiPkg.NewAPI(ctx, logger, cfg, authClient, db, osrClient)
 	srv := api.Server(port)
 
 	// metrics server
