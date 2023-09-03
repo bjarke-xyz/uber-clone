@@ -24,7 +24,7 @@ import {
 } from "../api/backend";
 import "./OverviewPage.css";
 import LocalTaxiIcon from "@mui/icons-material/LocalTaxi";
-import { takeRight } from "lodash";
+import { takeRight, sum } from "lodash";
 import { format, parseISO } from "date-fns";
 import markerIconPng from "leaflet/dist/images/marker-icon.png";
 import { Icon } from "leaflet";
@@ -211,7 +211,20 @@ export function OverviewPage() {
                   </div>
                 </div>
                 <div className="flex self-end">
-                  {ride.price / 100} {currencies[ride.currency]?.icon}
+                  <span>
+                    {ride.price / 100} {currencies[ride.currency]?.icon}
+                  </span>
+                  <span>&nbsp; &middot; &nbsp;</span>
+                  <span>
+                    {Math.ceil(
+                      sum(
+                        ride.directions?.routes?.map(
+                          (x) => x.summary.distance
+                        ) ?? []
+                      ) / 1000
+                    )}{" "}
+                    km
+                  </span>
                 </div>
               </div>
               {ride.driverId && (
