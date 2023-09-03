@@ -1,5 +1,5 @@
 import { Position, along, lineDistance, lineString } from "@turf/turf";
-import { BackendApi } from "./api";
+import { BackendApiClient } from "./api-client";
 import {
   BackendUser,
   LatLng,
@@ -26,21 +26,21 @@ export class SimDriver {
   private currentLocation: LatLng | null = null;
 
   constructor(
-    private api: BackendApi,
+    private apiClient: BackendApiClient,
     private userEmail: string,
     private userPassword: string
   ) {}
 
   private async log(message?: any, ...optionalParams: any[]) {
     console.log(`${this.userEmail} [D] | ${message}`, ...optionalParams);
-    await this.api.postLog({ tag: "D", message });
+    await this.apiClient.postLog({ tag: "D", message });
   }
 
   public async run() {
     try {
-      await this.api.signIn(this.userEmail, this.userPassword);
-      const vehicle = await this.api.getVehicle();
-      this.user = await this.api.getMyUser();
+      await this.apiClient.signIn(this.userEmail, this.userPassword);
+      const vehicle = await this.apiClient.getVehicle();
+      this.user = await this.apiClient.getMyUser();
       if (!this.user) {
         await this.log("user not found");
         return;
@@ -66,7 +66,7 @@ export class SimDriver {
   }
 
   private async getMyInProgressRides(): Promise<RideRequest[]> {
-    const rides = (await this.api.getMyRides()).filter(
+    const rides = (await this.apiClient.getMyRides()).filter(
       (x) =>
         x.driverId === this.user?.id &&
         (x.state === RideRequestState.Accepted ||
@@ -87,11 +87,14 @@ export class SimDriver {
       await this.log(`Found in-progress driver ride request ${rideRequest.id}`);
     } else {
       await wait(randomIntFromInterval(1, 5) * 1000);
-      const availableRideRequests = await this.api.getAvailableRideRequests();
+      const availableRideRequests =
+        await this.apiClient.getAvailableRideRequests();
       if (availableRideRequests.length > 0) {
         const potentialRideRequest = availableRideRequests[0];
         await this.log(`Claiming ${potentialRideRequest.id}`);
-        claimed = await this.api.claimRideRequest(potentialRideRequest.id);
+        claimed = await this.apiClient.claimRideRequest(
+          potentialRideRequest.id
+        );
         if (claimed) {
           rideRequest = potentialRideRequest;
         } else {
@@ -119,7 +122,7 @@ export class SimDriver {
         } ${rideRequest.fromName} -> ${rideRequest.toName}`
       );
       await this.move(vehicle, steps);
-      await this.api.finishRideRequest(rideRequest.id);
+      await this.apiClient.finishRideRequest(rideRequest.id);
       await this.log("Finished ride, sleeping 25 seconds");
       await wait(15 * 1000);
     } else {
@@ -147,7 +150,7 @@ export class SimDriver {
             bearing = getAngleInDegrees(location, nextLocation);
           }
           const speedKmh = (distance / timeSeconds) * 3.6;
-          await this.api.updateLocation(
+          await this.apiClient.updateLocation(
             vehicle.ID,
             location.lat,
             location.lng,
@@ -156,7 +159,7 @@ export class SimDriver {
           );
           await wait(waitMs);
         } else {
-          await this.api.updateLocation(
+          await this.apiClient.updateLocation(
             vehicle.ID,
             location.lat,
             location.lng,
@@ -174,12 +177,18 @@ export class SimDriver {
     rideRequestId: number,
     startPoint: LatLng | null
   ): Promise<RouteStep[]> {
-    let directions = await this.api.getDirectionsV1(rideRequestId, startPoint);
+    let directions = await this.apiClient.getDirectionsV1(
+      rideRequestId,
+      startPoint
+    );
     while (!directions) {
       const sleepSeconds = randomIntFromInterval(30 * 1000, 90 * 1000);
       await this.log(`failed to get directions, sleeping ${sleepSeconds}s`);
       await wait(sleepSeconds);
-      directions = await this.api.getDirectionsV1(rideRequestId, startPoint);
+      directions = await this.apiClient.getDirectionsV1(
+        rideRequestId,
+        startPoint
+      );
     }
     const steps: RouteStep[] = [];
     if (directions) {

@@ -1,5 +1,5 @@
 import { sample } from "lodash";
-import { BackendApi } from "./api";
+import { BackendApiClient } from "./api-client";
 import {
   LatLng,
   NamedPoint,
@@ -16,19 +16,19 @@ export class SimRider {
   private currentTo: NamedPoint | null = null;
 
   constructor(
-    private api: BackendApi,
+    private apiClient: BackendApiClient,
     private userEmail: string,
     private userPassword: string,
     private city: string
   ) {}
   private async log(message?: any, ...optionalParams: any[]) {
     console.log(`${this.userEmail} [R] | ${message}`, ...optionalParams);
-    await this.api.postLog({ tag: "R", message });
+    await this.apiClient.postLog({ tag: "R", message });
   }
 
   public async run() {
     try {
-      await this.api.signIn(this.userEmail, this.userPassword);
+      await this.apiClient.signIn(this.userEmail, this.userPassword);
       const myAvailableRides = await this.getAvailableRides();
       if (myAvailableRides.length > 0) {
         await this.initializeExistingRideRequest(myAvailableRides);
@@ -88,7 +88,7 @@ export class SimRider {
   }
 
   private async getAvailableRides() {
-    return (await this.api.getMyRides()).filter((x) =>
+    return (await this.apiClient.getMyRides()).filter((x) =>
       [
         RideRequestState.Available,
         RideRequestState.Accepted,
@@ -101,7 +101,7 @@ export class SimRider {
     if (!this.currentRideRequest) {
       return;
     }
-    const updatedCurrentRide = await this.api.getRideRequest(
+    const updatedCurrentRide = await this.apiClient.getRideRequest(
       this.currentRideRequest.id
     );
     if (updatedCurrentRide) {
@@ -111,7 +111,7 @@ export class SimRider {
 
   private async requestRide(from: NamedPoint, to: NamedPoint) {
     await this.log(`Requested ride ${from.name} -> ${to.name}`);
-    this.currentRideRequest = await this.api.createRideRequest(
+    this.currentRideRequest = await this.apiClient.createRideRequest(
       from.location,
       from.name,
       to.location,

@@ -9,7 +9,7 @@ import {
   Vehicle,
 } from "./types";
 
-export class BackendApi {
+export class BackendApiClient {
   private user: User | null = null;
   constructor(private baseUrl: string) {}
 

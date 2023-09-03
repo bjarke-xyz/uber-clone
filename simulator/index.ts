@@ -4,7 +4,7 @@ import express, { Express, Request, Response } from "express";
 import morgan from "morgan";
 import "source-map-support/register";
 import { SimDriver } from "./driver";
-import { BackendApi } from "./api";
+import { BackendApiClient } from "./api-client";
 import { SimUser } from "./types";
 import { SimRider } from "./rider";
 
@@ -33,15 +33,15 @@ const simUsers = JSON.parse(simUsersStr) as SimUser[];
 const simDrivers = simUsers
   .filter((u) => !u.isRider)
   .map((user) => {
-    const backendApi = new BackendApi(backendApiBaseUrl);
-    return new SimDriver(backendApi, user.email, user.password);
+    const backendApiClient = new BackendApiClient(backendApiBaseUrl);
+    return new SimDriver(backendApiClient, user.email, user.password);
   });
 simDrivers.forEach((driver) => driver.run());
 
 const simRiders = simUsers
   .filter((u) => u.isRider)
   .map((user) => {
-    const backendApi = new BackendApi(backendApiBaseUrl);
-    return new SimRider(backendApi, user.email, user.password, user.city);
+    const backendApiClient = new BackendApiClient(backendApiBaseUrl);
+    return new SimRider(backendApiClient, user.email, user.password, user.city);
   });
 simRiders.forEach((rider) => rider.run());
