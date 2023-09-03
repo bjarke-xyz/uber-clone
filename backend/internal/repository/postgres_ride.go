@@ -17,7 +17,7 @@ type postgresRideRepository struct {
 }
 
 const rideRequestColumns = `id, rider_id, driver_id, from_lat, from_lng, from_name,
-			to_lat, to_lng, to_name, state, directions_json_version, directions_json, created_at, updated_at`
+			to_lat, to_lng, to_name, state, directions_json_version, directions_json, price, currency, created_at, updated_at`
 
 func (p *postgresRideRepository) fetch(ctx context.Context, query string, args ...interface{}) ([]domain.RideRequest, error) {
 	rows, err := p.conn.Query(ctx, query, args...)
@@ -42,6 +42,8 @@ func (p *postgresRideRepository) fetch(ctx context.Context, query string, args .
 			&r.State,
 			&r.DirectionsJsonVersion,
 			&r.DirectionsJson,
+			&r.Price,
+			&r.Currency,
 			&r.CreatedAt,
 			&r.UpdatedAt,
 		); err != nil {
@@ -137,14 +139,14 @@ func (p *postgresRideRepository) ClaimRequest(ctx context.Context, requestId int
 }
 
 // UpdateRideDirections implements domain.RideRepository.
-func (p *postgresRideRepository) UpdateRideDirections(ctx context.Context, requestId int64, directionsVersion int, directions *domain.ORSDirections) error {
-	sql := "UPDATE ride_requests SET directions_json_version = $2, directions_json = $3 WHERE id = $1"
+func (p *postgresRideRepository) UpdateRideDirections(ctx context.Context, requestId int64, directionsVersion int, directions *domain.ORSDirections, price int) error {
+	sql := "UPDATE ride_requests SET directions_json_version = $2, directions_json = $3, price = $4 WHERE id = $1"
 	directionsBytes, err := json.Marshal(directions)
 	if err != nil {
 		return fmt.Errorf("failed to marshal directions: %w", err)
 	}
 	directionsStr := string(directionsBytes)
-	_, err = p.conn.Exec(ctx, sql, requestId, directionsVersion, directionsStr)
+	_, err = p.conn.Exec(ctx, sql, requestId, directionsVersion, directionsStr, price)
 	return err
 }
 

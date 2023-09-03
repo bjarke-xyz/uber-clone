@@ -37,6 +37,8 @@ CREATE TABLE IF NOT EXISTS ride_requests (
     state int,
     directions_json_version int null,
     directions_json text null,
+    price int default(0),
+    currency text default('EUR'),
     created_at TIMESTAMP WITH TIME ZONE,
     updated_at TIMESTAMP WITH TIME ZONE
 );

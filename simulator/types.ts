@@ -153,6 +153,8 @@ export interface RideRequest {
   toLng: number;
   toName: string;
   state: number;
+  price: number;
+  currency: string;
   createdAt: string;
   updatedAt: string;
 }

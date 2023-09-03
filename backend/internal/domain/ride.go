@@ -85,6 +85,9 @@ type RideRequest struct {
 	DirectionsJson        *string        `json:"-"`
 	DirectionsV1          *ORSDirections `json:"directions"`
 
+	Price    int    `json:"price"`
+	Currency string `json:"currency"`
+
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
@@ -108,5 +111,5 @@ type RideRepository interface {
 	CreateRequest(context.Context, *RideRequest) error
 	UpdateRequestState(context.Context, int64, RideRequestState) error
 	ClaimRequest(ctx context.Context, requestID int64, driverID int64) error
-	UpdateRideDirections(ctx context.Context, requestId int64, directionsVersion int, directions *ORSDirections) error
+	UpdateRideDirections(ctx context.Context, requestId int64, directionsVersion int, directions *ORSDirections, price int) error
 }

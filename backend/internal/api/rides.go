@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"time"
@@ -188,7 +189,12 @@ func (a *api) handleGetRideDirections(w http.ResponseWriter, r *http.Request) {
 			a.errorResponse(w, r, http.StatusInternalServerError, err)
 			return
 		}
-		err = a.rideRepo.UpdateRideDirections(r.Context(), rideRequestId, 1, directions)
+		totalDistance := 0
+		for _, route := range directions.Routes {
+			totalDistance += int(math.Ceil(route.Summary.Distance))
+		}
+		price := domain.CalculatePrice(totalDistance)
+		err = a.rideRepo.UpdateRideDirections(r.Context(), rideRequestId, 1, directions, price)
 		if err != nil {
 			a.errorResponse(w, r, http.StatusInternalServerError, err)
 			return

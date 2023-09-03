@@ -116,6 +116,10 @@ func (a *api) Routes() *chi.Mux {
 	})
 	r.Get("/v1/sim-users", a.handleGetSimUsers)
 
+	r.Route("/v1/payments", func(r chi.Router) {
+		r.Get("/currencies", a.handleGetCurrencies)
+	})
+
 	return r
 }
 

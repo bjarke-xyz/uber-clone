@@ -13,6 +13,7 @@ import {
 } from "react-leaflet";
 import {
   BackendUser,
+  Currency,
   LogEvent,
   PositionEvent,
   RideRequest,
@@ -74,6 +75,19 @@ export function OverviewPage() {
       const logs = await backendApi.getRecentLogs();
       const logEvents: LogEvent[] = logs.map((x) => ({ data: x }));
       setLogs(logEvents);
+    }
+    getData();
+  }, []);
+
+  const [currencies, setCurrencies] = useState<Record<string, Currency>>({});
+  useEffect(() => {
+    async function getData() {
+      const currencies = await backendApi.getCurrencies();
+      const currencyMap: Record<string, Currency> = {};
+      for (const c of currencies) {
+        currencyMap[c.symbol] = c;
+      }
+      setCurrencies(currencyMap);
     }
     getData();
   }, []);
@@ -189,14 +203,19 @@ export function OverviewPage() {
                 activeRide?.id === ride.id ? "bg-sky-200" : ""
               }`}
             >
-              <div className="flex items-center ">
-                <PersonIcon />
-                <div className="ml-2 text-lg">
-                  {usersMap[ride.riderId]?.name ?? "Unknown user"}
+              <div className="flex items-center justify-between">
+                <div className="flex">
+                  <PersonIcon />
+                  <div className="ml-2 text-lg">
+                    {usersMap[ride.riderId]?.name ?? "Unknown user"}
+                  </div>
+                </div>
+                <div className="flex self-end">
+                  {ride.price / 100} {currencies[ride.currency]?.icon}
                 </div>
               </div>
               {ride.driverId && (
-                <div className="flex items-center">
+                <div className="flex">
                   <LocalTaxiIcon />
                   <div className="ml-2 text-lg">
                     {usersMap[ride.driverId]?.name ?? "Unknown user"}

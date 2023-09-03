@@ -16,6 +16,10 @@ export class BackendApi {
   async getRecentLogs(): Promise<LogEvent["data"][]> {
     return fetch(`${baseUrl}/v1/sim/logs`).then((res) => res.json());
   }
+
+  async getCurrencies(): Promise<Currency[]> {
+    return fetch(`${baseUrl}/v1/payments/currencies`).then((res) => res.json());
+  }
 }
 export const backendApi = new BackendApi();
 
@@ -68,6 +72,8 @@ export interface RideRequest {
   state: number;
   directionsVersion: number | null;
   directions: DirectionsV1 | null;
+  price: number;
+  currency: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -191,3 +197,8 @@ export const decodePolyline = (
   }
   return points;
 };
+
+export interface Currency {
+  symbol: string;
+  icon: string;
+}
