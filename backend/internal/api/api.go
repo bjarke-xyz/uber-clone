@@ -3,10 +3,12 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 
+	"github.com/bjarke-xyz/uber-clone-backend/internal/cfg"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/domain"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/repository"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/service"
@@ -32,6 +34,7 @@ var (
 
 type api struct {
 	logger *slog.Logger
+	cfg    *cfg.Cfg
 
 	userRepo    domain.UserRepository
 	vehicleRepo domain.VehicleRepository
@@ -42,7 +45,7 @@ type api struct {
 	broker *broker
 }
 
-func NewAPI(ctx context.Context, logger *slog.Logger, pool *pgxpool.Pool, osrClient *service.OpenRouteServiceClient) *api {
+func NewAPI(ctx context.Context, logger *slog.Logger, cfg *cfg.Cfg, pool *pgxpool.Pool, osrClient *service.OpenRouteServiceClient) *api {
 	userRepo := repository.NewPostgresUser(pool)
 	vehicleRepo := repository.NewPostgresVehicle(pool)
 	rideRepo := repository.NewPostgresRide(pool)
@@ -57,6 +60,7 @@ func NewAPI(ctx context.Context, logger *slog.Logger, pool *pgxpool.Pool, osrCli
 
 	return &api{
 		logger:      logger,
+		cfg:         cfg,
 		userRepo:    userRepo,
 		vehicleRepo: vehicleRepo,
 		rideRepo:    rideRepo,
@@ -139,6 +143,14 @@ func (a *api) respondStatus(w http.ResponseWriter, r *http.Request, status int, 
 			a.logger.Error("error sending response", "error", err)
 		}
 	}
+}
+
+func (a *api) errorResponse(w http.ResponseWriter, _ *http.Request, status int, err error) {
+	a.logger.Error("error", "error", err)
+	if errors.Is(err, domain.ErrNotFound) {
+		status = http.StatusNotFound
+	}
+	http.Error(w, err.Error(), status)
 }
 
 func (broker *broker) listen(logger *slog.Logger) {

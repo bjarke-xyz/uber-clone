@@ -26,6 +26,10 @@ type AuthToken struct {
 
 var keyRetreiver = NewGoogleKeyRetreiver()
 
+func WarmCache(ctx context.Context) {
+	keyRetreiver.GetKeys(ctx)
+}
+
 func ValidateToken(ctx context.Context, audience string, tokenStr string) (*AuthToken, error) {
 	keys, err := keyRetreiver.GetKeys(ctx)
 	if err != nil {

@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"net/http"
-	"os"
 
 	"github.com/bjarke-xyz/uber-clone-backend/internal/auth"
 )
@@ -18,7 +17,7 @@ func (a *api) firebaseJwtVerifier(next http.Handler) http.Handler {
 
 		ctx := r.Context()
 
-		token, err := auth.ValidateToken(ctx, os.Getenv("FIREBASE_PROJECT_ID"), idTokenStr)
+		token, err := auth.ValidateToken(ctx, a.cfg.FirebaseProjectId, idTokenStr)
 		if err != nil {
 			a.errorResponse(w, r, http.StatusUnauthorized, err)
 			return

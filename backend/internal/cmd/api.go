@@ -2,13 +2,13 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 	"strconv"
 
 	apiPkg "github.com/bjarke-xyz/uber-clone-backend/internal/api"
+	"github.com/bjarke-xyz/uber-clone-backend/internal/auth"
+	"github.com/bjarke-xyz/uber-clone-backend/internal/cfg"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/cmdutil"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/service"
 	"github.com/joho/godotenv"
@@ -17,26 +17,25 @@ import (
 
 func APICmd(ctx context.Context) error {
 	godotenv.Load()
+	cfg := cfg.NewConfig()
 	port := 7000
-	port = 7000
-	if os.Getenv("PORT") != "" {
-		port, _ = strconv.Atoi(os.Getenv("PORT"))
+	if cfg.Port != "" {
+		port, _ = strconv.Atoi(cfg.Port)
 	}
-	logger := cmdutil.NewLogger("api")
+	logger := cmdutil.NewLogger("api", cfg.Env)
 
-	db, err := cmdutil.NewDatabasePool(ctx, 16)
+	db, err := cmdutil.NewDatabasePool(ctx, cfg.DatabaseConnectionPoolUrl, 16)
 	if err != nil {
 		return err
 	}
+	cmdutil.MigrateDb(cfg.DatabaseConnectionPoolUrl)
 	defer db.Close()
 
-	osrApiKey := os.Getenv("OSR_API_KEY")
-	if osrApiKey == "" {
-		return fmt.Errorf("OSR_API_KEY environment variable was empty")
-	}
-	osrClient := service.NewOpenRouteServiceClient(osrApiKey)
+	osrClient := service.NewOpenRouteServiceClient(cfg.OSRApiKey)
 
-	api := apiPkg.NewAPI(ctx, logger, db, osrClient)
+	auth.WarmCache(ctx)
+
+	api := apiPkg.NewAPI(ctx, logger, cfg, db, osrClient)
 	srv := api.Server(port)
 
 	// metrics server
