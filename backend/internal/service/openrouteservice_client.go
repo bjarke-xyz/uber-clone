@@ -18,7 +18,7 @@ type OpenRouteServiceClient struct {
 	httpClient *http.Client
 }
 
-func NewOpenRouteServiceClient(apiKey string) *OpenRouteServiceClient {
+func NewOpenRouteServiceClient(apiKey string) rides.RouteServiceClient {
 	httpClient := &http.Client{
 		Timeout: time.Minute,
 	}

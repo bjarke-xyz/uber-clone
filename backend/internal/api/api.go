@@ -18,7 +18,6 @@ import (
 	"github.com/bjarke-xyz/uber-clone-backend/internal/core/users"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/core/vehicles"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/repository"
-	"github.com/bjarke-xyz/uber-clone-backend/internal/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -57,7 +56,7 @@ type api struct {
 	broker *broker
 }
 
-func NewAPI(ctx context.Context, logger *slog.Logger, cfg *cfg.Cfg, authClient auth.AuthClient, pool *pgxpool.Pool, osrClient *service.OpenRouteServiceClient) *api {
+func NewAPI(ctx context.Context, logger *slog.Logger, cfg *cfg.Cfg, authClient auth.AuthClient, pool *pgxpool.Pool, osrClient rides.RouteServiceClient) *api {
 	userRepo := repository.NewPostgresUser(pool)
 	vehicleRepo := repository.NewPostgresVehicle(pool)
 	rideRepo := repository.NewPostgresRide(pool)
