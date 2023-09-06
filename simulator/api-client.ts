@@ -39,7 +39,7 @@ export class BackendApiClient {
           Authorization: `Bearer ${idToken}`,
         },
       });
-      if (resp.status !== 200) {
+      if (resp.status > 299) {
         throw new Error(`got status ${resp.status}`);
       }
       const vehicles = (await resp.json()) as Vehicle[];
@@ -98,7 +98,7 @@ export class BackendApiClient {
           Authorization: `Bearer ${idtoken}`,
         },
       });
-      if (resp.status !== 200) {
+      if (resp.status > 299) {
         throw new Error(`requestRide returned ${resp.status}`);
       }
       const json = (await resp.json()) as RideRequest;
@@ -123,7 +123,7 @@ export class BackendApiClient {
           Authorization: `Bearer ${idtoken}`,
         },
       });
-      if (resp.status !== 200) {
+      if (resp.status > 299) {
         throw new Error(`getMyRides returned ${resp.status}`);
       }
       const json = (await resp.json()) as RideRequest[];
@@ -142,7 +142,7 @@ export class BackendApiClient {
           Authorization: `Bearer ${idtoken}`,
         },
       });
-      if (resp.status !== 200) {
+      if (resp.status > 299) {
         throw new Error(`getMyUser returned ${resp.status}`);
       }
       const json = (await resp.json()) as BackendUser;
@@ -161,7 +161,7 @@ export class BackendApiClient {
           Authorization: `Bearer ${idtoken}`,
         },
       });
-      if (resp.status !== 200) {
+      if (resp.status > 299) {
         throw new Error(`getAvailableRideRequests returned ${resp.status}`);
       }
       const json = (await resp.json()) as RideRequest[];
@@ -181,7 +181,7 @@ export class BackendApiClient {
           Authorization: `Bearer ${idtoken}`,
         },
       });
-      if (resp.status !== 200) {
+      if (resp.status > 299) {
         throw new Error(`claimRideRequest ${id} returned ${resp.status}`);
       }
       return true;
@@ -200,7 +200,7 @@ export class BackendApiClient {
           Authorization: `Bearer ${idtoken}`,
         },
       });
-      if (resp.status !== 200) {
+      if (resp.status > 299) {
         throw new Error(`finishRideRequest ${id} returned ${resp.status}`);
       }
       return true;
@@ -227,7 +227,7 @@ export class BackendApiClient {
           },
         }
       );
-      if (resp.status !== 200) {
+      if (resp.status > 299) {
         throw new Error(`getDirectionsV1 returned status ${resp.status}`);
       }
       const json = (await resp.json()) as DirectionsV1;
