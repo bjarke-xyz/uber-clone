@@ -1,12 +1,11 @@
 package api
 
 import (
+	"context"
 	"net/http"
-
-	"github.com/bjarke-xyz/uber-clone-backend/internal/domain"
 )
 
-func (a *api) handleGetCurrencies(w http.ResponseWriter, r *http.Request) {
-	currencies := domain.GetCurrencies()
-	a.respond(w, r, currencies)
+func (a *api) handleGetCurrencies(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	currencies := a.paymentsService.GetCurrencies()
+	return a.respond(w, r, currencies)
 }

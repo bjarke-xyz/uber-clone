@@ -7,7 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bjarke-xyz/uber-clone-backend/internal/domain"
+	"github.com/bjarke-xyz/uber-clone-backend/internal/core"
+	"github.com/bjarke-xyz/uber-clone-backend/internal/core/vehicles"
 	"github.com/samber/lo"
 )
 
@@ -15,20 +16,20 @@ type postgresVehicleRepository struct {
 	conn Connection
 }
 
-func NewPostgresVehicle(conn Connection) domain.VehicleRepository {
+func NewPostgresVehicle(conn Connection) vehicles.VehicleRepository {
 	return &postgresVehicleRepository{conn: conn}
 }
 
-func (p *postgresVehicleRepository) fetch(ctx context.Context, query string, args ...interface{}) ([]domain.Vehicle, error) {
+func (p *postgresVehicleRepository) fetch(ctx context.Context, query string, args ...interface{}) ([]vehicles.Vehicle, error) {
 	rows, err := p.conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	vv := make([]domain.Vehicle, 0)
+	vv := make([]vehicles.Vehicle, 0)
 	for rows.Next() {
-		var v domain.Vehicle
+		var v vehicles.Vehicle
 		if err := rows.Scan(
 			&v.ID,
 			&v.RegistrationCountry,
@@ -43,66 +44,66 @@ func (p *postgresVehicleRepository) fetch(ctx context.Context, query string, arg
 	return vv, nil
 }
 
-// GetByIdAndOwnerId implements domain.VehicleRepository.
-func (p *postgresVehicleRepository) GetByIdAndOwnerId(ctx context.Context, vehicleId int64, userId int64) (domain.Vehicle, error) {
+// GetByIdAndOwnerId implements vehicles.VehicleRepository.
+func (p *postgresVehicleRepository) GetByIdAndOwnerId(ctx context.Context, vehicleId int64, userId int64) (vehicles.Vehicle, error) {
 	sql := "SELECT id, registration_country, registration_number, owner_id, icon FROM vehicles WHERE id = $1 AND owner_id = $2"
-	vehicles, err := p.fetch(ctx, sql, vehicleId, userId)
+	vehicleList, err := p.fetch(ctx, sql, vehicleId, userId)
 	if err != nil {
-		return domain.Vehicle{}, err
+		return vehicles.Vehicle{}, err
 	}
-	if len(vehicles) == 0 {
-		return domain.Vehicle{}, domain.ErrNotFound
+	if len(vehicleList) == 0 {
+		return vehicles.Vehicle{}, core.Errorf(core.ENOTFOUND, "vehicle not found")
 	}
-	return vehicles[0], nil
+	return vehicleList[0], nil
 }
 
-// CreateOrUpdate implements domain.VehicleRepository.
-func (p *postgresVehicleRepository) CreateOrUpdate(ctx context.Context, v *domain.Vehicle) error {
+// CreateOrUpdate implements vehicles.VehicleRepository.
+func (p *postgresVehicleRepository) CreateOrUpdate(ctx context.Context, v *vehicles.Vehicle) error {
 	panic("unimplemented")
 }
 
-// Delete implements domain.VehicleRepository.
+// Delete implements vehicles.VehicleRepository.
 func (p *postgresVehicleRepository) Delete(ctx context.Context, id int64) error {
 	panic("unimplemented")
 }
 
-// GetByID implements domain.VehicleRepository.
-func (p *postgresVehicleRepository) GetByID(ctx context.Context, id int64) (domain.Vehicle, error) {
+// GetByID implements vehicles.VehicleRepository.
+func (p *postgresVehicleRepository) GetByID(ctx context.Context, id int64) (vehicles.Vehicle, error) {
 	sql := "SELECT id, registration_country, registration_number, owner_id, icon FROM vehicles WHERE id = $1"
-	vehicles, err := p.fetch(ctx, sql, id)
+	vehicleList, err := p.fetch(ctx, sql, id)
 	if err != nil {
-		return domain.Vehicle{}, err
+		return vehicles.Vehicle{}, err
 	}
-	if len(vehicles) == 0 {
-		return domain.Vehicle{}, domain.ErrNotFound
+	if len(vehicleList) == 0 {
+		return vehicles.Vehicle{}, core.Errorf(core.ENOTFOUND, "vehicle with id %v not found", id)
 	}
-	return vehicles[0], nil
+	return vehicleList[0], nil
 }
 
-// GetByOwnerId implements domain.VehicleRepository.
-func (p *postgresVehicleRepository) GetByOwnerId(ctx context.Context, userId int64) ([]domain.Vehicle, error) {
+// GetByOwnerId implements vehicles.VehicleRepository.
+func (p *postgresVehicleRepository) GetByOwnerId(ctx context.Context, userId int64) ([]vehicles.Vehicle, error) {
 	sql := "SELECT id, registration_country, registration_number, owner_id, icon FROM vehicles WHERE owner_id = $1"
-	vehicles, err := p.fetch(ctx, sql, userId)
+	vehicleList, err := p.fetch(ctx, sql, userId)
 	if err != nil {
-		return vehicles, err
+		return vehicleList, err
 	}
-	return vehicles, nil
+	return vehicleList, nil
 }
 
-// GetSimulatedVehicles implements domain.VehicleRepository.
-func (p *postgresVehicleRepository) GetSimulatedVehicles(ctx context.Context) ([]domain.Vehicle, error) {
+// GetSimulatedVehicles implements vehicles.VehicleRepository.
+func (p *postgresVehicleRepository) GetSimulatedVehicles(ctx context.Context) ([]vehicles.Vehicle, error) {
 	sql := `SELECT v.id, v.registration_country, v.registration_number, v.owner_id, v.icon FROM vehicles v
 			WHERE v.owner_id IN (SELECT id FROM users WHERE simulated = true)`
-	vehicles, err := p.fetch(ctx, sql)
+	vehicleList, err := p.fetch(ctx, sql)
 	if err != nil {
-		return vehicles, err
+		return vehicleList, err
 	}
-	return vehicles, nil
+	return vehicleList, nil
 }
 
-// GetVehiclePositions implements domain.VehicleRepository.
-func (p *postgresVehicleRepository) GetVehiclePositions(ctx context.Context, vehicleIds []int64) ([]domain.VehiclePosition, error) {
-	positions := make([]domain.VehiclePosition, 0)
+// GetVehiclePositions implements vehicles.VehicleRepository.
+func (p *postgresVehicleRepository) GetVehiclePositions(ctx context.Context, vehicleIds []int64) ([]vehicles.VehiclePosition, error) {
+	positions := make([]vehicles.VehiclePosition, 0)
 	if len(vehicleIds) == 0 {
 		return positions, nil
 	}
@@ -117,7 +118,7 @@ func (p *postgresVehicleRepository) GetVehiclePositions(ctx context.Context, veh
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var p domain.VehiclePosition
+		var p vehicles.VehiclePosition
 		if err := rows.Scan(
 			&p.ID,
 			&p.VehicleID,
@@ -133,7 +134,7 @@ func (p *postgresVehicleRepository) GetVehiclePositions(ctx context.Context, veh
 
 }
 
-// UpdatePosition implements domain.VehicleRepository.
+// UpdatePosition implements vehicles.VehicleRepository.
 func (p *postgresVehicleRepository) UpdatePosition(ctx context.Context, vehicleId int64, lat float64, lng float64) error {
 	countSql := "SELECT COUNT(*) FROM vehicle_positions WHERE vehicle_id = $1"
 

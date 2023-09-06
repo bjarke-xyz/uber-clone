@@ -6,115 +6,55 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/bjarke-xyz/uber-clone-backend/internal/domain"
-	"github.com/go-chi/chi/v5"
-	validation "github.com/go-ozzo/ozzo-validation"
+	"github.com/bjarke-xyz/uber-clone-backend/internal/core/vehicles"
 )
 
-func (a *api) getVehiclesHandler(w http.ResponseWriter, r *http.Request) {
+func (a *api) getVehiclesHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	token, _ := TokenFromContext(r.Context())
-	user, err := a.userRepo.GetByUserID(r.Context(), token.Subject)
-	if err != nil {
-		a.errorResponse(w, r, http.StatusInternalServerError, err)
-		return
-	}
-	vehicles, err := a.vehicleRepo.GetByOwnerId(r.Context(), user.ID)
-	if err != nil {
-		a.errorResponse(w, r, http.StatusInternalServerError, err)
-		return
-	}
-	err = a.enrichWithPositions(r.Context(), vehicles)
-	if err != nil {
-		a.errorResponse(w, r, http.StatusInternalServerError, err)
-		return
-	}
-	a.respond(w, r, vehicles)
-}
-
-type GetSimulatedVehiclesResponse struct {
-	Vehicles  []domain.Vehicle         `json:"vehicles"`
-	Positions []domain.VehiclePosition `json:"positions"`
-}
-
-func (a *api) enrichWithPositions(ctx context.Context, vehicles []domain.Vehicle) error {
-	vehicleIds := make([]int64, len(vehicles))
-	for i, v := range vehicles {
-		vehicleIds[i] = v.ID
-	}
-	vehiclePositions, err := a.vehicleRepo.GetVehiclePositions(ctx, vehicleIds)
+	vehicleList, err := a.vehicleService.GetVehicles(ctx, token.Subject)
 	if err != nil {
 		return err
 	}
-	vehiclePosMap := make(map[int64]domain.VehiclePosition)
-	for _, p := range vehiclePositions {
-		vehiclePosMap[p.VehicleID] = p
-	}
-	for i, vehicle := range vehicles {
-		pos, ok := vehiclePosMap[vehicle.ID]
-		if ok {
-			vehicles[i].LastRecordedPosition = &pos
-		}
-	}
-	return nil
+	return a.respond(w, r, vehicleList)
 }
 
-func (a *api) handleGetSimulatedVehicles(w http.ResponseWriter, r *http.Request) {
-	vehicles, err := a.vehicleRepo.GetSimulatedVehicles(r.Context())
-	if err != nil {
-		a.errorResponse(w, r, http.StatusInternalServerError, err)
-		return
-	}
-	err = a.enrichWithPositions(r.Context(), vehicles)
-	if err != nil {
-		a.errorResponse(w, r, http.StatusInternalServerError, err)
-		return
-	}
-
-	a.respond(w, r, vehicles)
+type GetSimulatedVehiclesResponse struct {
+	Vehicles  []vehicles.Vehicle         `json:"vehicles"`
+	Positions []vehicles.VehiclePosition `json:"positions"`
 }
 
-func (a *api) updateVehiclePositionHandler(w http.ResponseWriter, r *http.Request) {
+func (a *api) handleGetSimulatedVehicles(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	vehicleList, err := a.vehicleService.GetSimulatedVehicles(ctx)
+	if err != nil {
+		return err
+	}
+	return a.respond(w, r, vehicleList)
+}
+
+func (a *api) updateVehiclePositionHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	token, _ := TokenFromContext(r.Context())
-	vehicleIdStr := chi.URLParam(r, "vehicleID")
-	vehicleId, err := strconv.Atoi(vehicleIdStr)
+	vehicleId, err := urlParamInt(r, "vehicleID")
 	if err != nil {
-		a.errorResponse(w, r, http.StatusBadRequest, fmt.Errorf("failed to parse vehicle id: %w", err))
-		return
+		return err
 	}
-	input := &UpdateVehiclePositionInput{}
-	if err := json.NewDecoder(r.Body).Decode(input); err != nil {
-		a.errorResponse(w, r, http.StatusInternalServerError, fmt.Errorf("failed to decode body: %w", err))
-		return
-	}
-	err = input.Validate()
-	if err != nil {
-		a.errorResponse(w, r, http.StatusInternalServerError, err)
-		return
+	input := &vehicles.UpdateVehiclePositionInput{}
+	if err := decodeBody(r.Body, input); err != nil {
+		return err
 	}
 	go func() {
 		ctx, cancel := context.WithDeadline(context.Background(), time.Now().UTC().Add(1*time.Second))
 		err := func() error {
-			user, err := a.userRepo.GetByUserID(ctx, token.Subject)
+			err := a.vehicleService.UpdateVehiclePosition(ctx, token.Subject, vehicleId, input)
 			if err != nil {
 				cancel()
-				return fmt.Errorf("failed to get user: %w", err)
+				return err
 			}
-			vehicle, err := a.vehicleRepo.GetByIdAndOwnerId(ctx, int64(vehicleId), user.ID)
-			if err != nil {
-				cancel()
-				return fmt.Errorf("failed to get vehicle %w", err)
-			}
-			err = a.vehicleRepo.UpdatePosition(ctx, vehicle.ID, input.Lat, input.Lng)
-			if err != nil {
-				cancel()
-				return fmt.Errorf("failed to update position: %w", err)
-			}
-			a.emitPositionUpdateEvent(domain.VehiclePosition{
-				VehicleID:  vehicle.ID,
+			// TODO: move to event listener
+			a.emitPositionUpdateEvent(vehicles.VehiclePosition{
+				VehicleID:  vehicleId,
 				Lat:        input.Lat,
 				Lng:        input.Lng,
 				RecordedAt: time.Now(),
@@ -128,7 +68,7 @@ func (a *api) updateVehiclePositionHandler(w http.ResponseWriter, r *http.Reques
 		}
 	}()
 
-	w.WriteHeader(http.StatusAccepted)
+	return a.respondStatus(w, r, http.StatusAccepted, nil)
 }
 
 func (a *api) handleEvents(w http.ResponseWriter, r *http.Request) {
@@ -166,14 +106,7 @@ func (a *api) handleEvents(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type UpdateVehiclePositionInput struct {
-	Lat     float64 `json:"lat"`
-	Lng     float64 `json:"lng"`
-	Bearing float32 `json:"bearing"`
-	Speed   float32 `json:"speed"`
-}
-
-func (a *api) emitPositionUpdateEvent(vehiclePos domain.VehiclePosition) error {
+func (a *api) emitPositionUpdateEvent(vehiclePos vehicles.VehiclePosition) error {
 	sseStr, err := formatServerSentEvent("position-update", vehiclePos)
 	if err != nil {
 		return err
@@ -181,13 +114,6 @@ func (a *api) emitPositionUpdateEvent(vehiclePos domain.VehiclePosition) error {
 	bytes := []byte(sseStr)
 	a.broker.Notifier <- bytes
 	return nil
-}
-
-func (i *UpdateVehiclePositionInput) Validate() error {
-	return validation.ValidateStruct(i,
-		validation.Field(&i.Lat, validation.Required),
-		validation.Field(&i.Lng, validation.Required),
-	)
 }
 
 func formatServerSentEvent(event string, data any) (string, error) {

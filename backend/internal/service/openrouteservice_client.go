@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/bjarke-xyz/uber-clone-backend/internal/domain"
+	"github.com/bjarke-xyz/uber-clone-backend/internal/core/rides"
 )
 
 const orsBaseUrl string = "https://api.openrouteservice.org"
@@ -28,7 +28,7 @@ func NewOpenRouteServiceClient(apiKey string) *OpenRouteServiceClient {
 	}
 }
 
-func (o *OpenRouteServiceClient) GetDirections(locations [][]float64) (*domain.ORSDirections, error) {
+func (o *OpenRouteServiceClient) GetDirections(locations [][]float64) (*rides.ORSDirections, error) {
 	reqBody := make(map[string]any, 0)
 	reqBody["coordinates"] = locations
 	reqBody["maneuvers"] = true
@@ -56,7 +56,7 @@ func (o *OpenRouteServiceClient) GetDirections(locations [][]float64) (*domain.O
 		respStr := string(respBytes)
 		return nil, fmt.Errorf("got error response from OSR: status=%v body=%v", resp.StatusCode, respStr)
 	}
-	directions := &domain.ORSDirections{}
+	directions := &rides.ORSDirections{}
 	err = json.Unmarshal(respBytes, directions)
 	if err != nil {
 		return nil, err

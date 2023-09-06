@@ -1,16 +1,13 @@
 package api
 
 import (
+	"context"
 	"net/http"
 )
 
-func (a *api) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
+func (a *api) healthCheckHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	data := map[string]string{
 		"status": "OK",
 	}
-	_, err := a.userRepo.GetByID(r.Context(), 1)
-	if err != nil {
-		a.logger.Error("failed to get user", "error", err)
-	}
-	a.respond(w, r, data)
+	return a.respond(w, r, data)
 }

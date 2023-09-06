@@ -21,7 +21,7 @@ func (a *api) firebaseJwtVerifier(next http.Handler) http.Handler {
 		token, err := a.authClient.ValidateToken(ctx, &auth.ValidateTokenRequest{Token: idTokenStr})
 		if err != nil {
 			a.logger.Warn("error validating token", "error", err)
-			a.errorResponse(w, r, http.StatusUnauthorized, err)
+			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
 

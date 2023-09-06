@@ -2,29 +2,29 @@ package repository
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/bjarke-xyz/uber-clone-backend/internal/domain"
+	"github.com/bjarke-xyz/uber-clone-backend/internal/core"
+	"github.com/bjarke-xyz/uber-clone-backend/internal/core/users"
 )
 
 type postgresUserRepository struct {
 	conn Connection
 }
 
-func NewPostgresUser(conn Connection) domain.UserRepository {
+func NewPostgresUser(conn Connection) users.UserRepository {
 	return &postgresUserRepository{conn: conn}
 }
 
-func (p *postgresUserRepository) fetch(ctx context.Context, query string, args ...interface{}) ([]domain.User, error) {
+func (p *postgresUserRepository) fetch(ctx context.Context, query string, args ...interface{}) ([]users.User, error) {
 	rows, err := p.conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	uu := make([]domain.User, 0)
+	uu := make([]users.User, 0)
 	for rows.Next() {
-		var u domain.User
+		var u users.User
 		if err := rows.Scan(
 			&u.ID,
 			&u.UserID,
@@ -38,8 +38,8 @@ func (p *postgresUserRepository) fetch(ctx context.Context, query string, args .
 	return uu, nil
 }
 
-// CreateOrUpdate implements domain.UserRepository.
-func (p *postgresUserRepository) CreateOrUpdate(ctx context.Context, user *domain.User) error {
+// CreateOrUpdate implements users.UserRepository.
+func (p *postgresUserRepository) CreateOrUpdate(ctx context.Context, user *users.User) error {
 	if err := user.Validate(); err != nil {
 		return err
 	}
@@ -49,46 +49,46 @@ func (p *postgresUserRepository) CreateOrUpdate(ctx context.Context, user *domai
 	return p.conn.QueryRow(ctx, sql, user.UserID, user.Name).Scan(&user.ID)
 }
 
-// Delete implements domain.UserRepository.
+// Delete implements users.UserRepository.
 func (p *postgresUserRepository) Delete(ctx context.Context, id int64) error {
 	sql := "DELETE FROM users WHERE id = $1"
 	_, err := p.conn.Exec(ctx, sql, id)
 	return err
 }
 
-// GetByID implements domain.UserRepository.
-func (p *postgresUserRepository) GetByID(ctx context.Context, id int64) (domain.User, error) {
+// GetByID implements users.UserRepository.
+func (p *postgresUserRepository) GetByID(ctx context.Context, id int64) (users.User, error) {
 	sql := "SELECT id, user_uid, name, simulated FROM users WHERE id = $1"
-	users, err := p.fetch(ctx, sql, id)
+	userList, err := p.fetch(ctx, sql, id)
 	if err != nil {
-		return domain.User{}, err
+		return users.User{}, err
 	}
-	if len(users) == 0 {
-		return domain.User{}, domain.ErrNotFound
+	if len(userList) == 0 {
+		return users.User{}, core.Errorf(core.ENOTFOUND, "user with id %v not found", id)
 	}
-	return users[0], nil
+	return userList[0], nil
 }
 
-// GetByUserID implements domain.UserRepository.
-func (p *postgresUserRepository) GetByUserID(ctx context.Context, userID string) (domain.User, error) {
+// GetByUserID implements users.UserRepository.
+func (p *postgresUserRepository) GetByUserID(ctx context.Context, userID string) (users.User, error) {
 	sql := "SELECT id, user_uid, name, simulated FROM users WHERE user_uid = $1"
-	users, err := p.fetch(ctx, sql, userID)
+	userList, err := p.fetch(ctx, sql, userID)
 	if err != nil {
-		return domain.User{}, err
+		return users.User{}, err
 	}
-	if len(users) == 0 {
-		return domain.User{}, domain.ErrNotFound
+	if len(userList) == 0 {
+		return users.User{}, core.Errorf(core.ENOTFOUND, "user with id %v not found", userID)
 	}
-	return users[0], nil
+	return userList[0], nil
 }
 
-// GetSimulatedUsers implements domain.UserRepository.
-func (p *postgresUserRepository) GetSimulatedUsers(ctx context.Context) ([]domain.User, error) {
+// GetSimulatedUsers implements users.UserRepository.
+func (p *postgresUserRepository) GetSimulatedUsers(ctx context.Context) ([]users.User, error) {
 	sql := "SELECT id, user_uid, name, simulated FROM users WHERE simulated = true"
-	users, err := p.fetch(ctx, sql)
+	userList, err := p.fetch(ctx, sql)
 	if err != nil {
-		return users, fmt.Errorf("failed to get simulated users: %w", err)
+		return userList, err
 	}
-	return users, nil
+	return userList, nil
 
 }

@@ -1,91 +1,53 @@
 package api
 
 import (
-	"encoding/json"
-	"fmt"
+	"context"
 	"net/http"
-	"sync"
-	"time"
+
+	"github.com/bjarke-xyz/uber-clone-backend/internal/core/users"
 )
 
-func (a *api) handleGetMyUser(w http.ResponseWriter, r *http.Request) {
+func (a *api) handleGetMyUser(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	token, _ := TokenFromContext(r.Context())
-	user, err := a.userRepo.GetByUserID(r.Context(), token.Subject)
+	user, err := a.userService.GetUserByID(ctx, token.Subject)
 	if err != nil {
-		a.errorResponse(w, r, http.StatusInternalServerError, err)
-		return
+		return err
 	}
-	a.respond(w, r, user)
+	return a.respond(w, r, user)
 }
 
-func (a *api) handleGetSimUsers(w http.ResponseWriter, r *http.Request) {
-	users, err := a.userRepo.GetSimulatedUsers(r.Context())
+func (a *api) handleGetSimUsers(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	users, err := a.userService.GetSimulatedUsers(ctx)
 	if err != nil {
-		a.errorResponse(w, r, http.StatusInternalServerError, err)
-		return
+		return err
 	}
-	a.respond(w, r, users)
+	return a.respond(w, r, users)
 }
 
-type PostUserLogInput struct {
-	Tag     string `json:"tag"`
-	Message string `json:"message"`
-}
-
-func (a *api) handlePostUserLog(w http.ResponseWriter, r *http.Request) {
+func (a *api) handlePostUserLog(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	token, _ := TokenFromContext(r.Context())
-	input := &PostUserLogInput{}
-	if err := json.NewDecoder(r.Body).Decode(input); err != nil {
-		a.errorResponse(w, r, http.StatusInternalServerError, fmt.Errorf("failed to decode body: %w", err))
-		return
+	input := &users.PostUserLogInput{}
+	if err := decodeBody(r.Body, input); err != nil {
+		return err
 	}
-	user, err := a.userRepo.GetByUserID(r.Context(), token.Subject)
+	userLogEvent, err := a.userService.AddUserLog(ctx, token.Subject, input)
 	if err != nil {
-		a.errorResponse(w, r, http.StatusInternalServerError, err)
-		return
+		return err
 	}
-	if !user.Simulated {
-		a.errorResponse(w, r, http.StatusBadRequest, fmt.Errorf("only simulated users can POST logs"))
-		return
-	}
-
-	userLogEvent := UserLogEvent{
-		UserID:    user.ID,
-		Tag:       input.Tag,
-		Message:   input.Message,
-		Timestamp: time.Now().UTC(),
-	}
+	// TODO: Move to event listener
 	go a.emitUserLogEvent(userLogEvent)
-	go storeUserLog(userLogEvent)
-	w.WriteHeader(http.StatusAccepted)
+	return a.respondStatus(w, r, http.StatusAccepted, nil)
 }
 
-func (a *api) handleGetRecentLogs(w http.ResponseWriter, r *http.Request) {
-	a.respond(w, r, recentUserLogs)
-}
-
-type UserLogEvent struct {
-	UserID    int64     `json:"userId"`
-	Message   string    `json:"message"`
-	Tag       string    `json:"tag"`
-	Timestamp time.Time `json:"timestamp"`
-}
-
-var recentUserLogs = make([]UserLogEvent, 0)
-var recentUserLogsLock sync.RWMutex
-var maxRecentLogs = 100
-
-func storeUserLog(event UserLogEvent) {
-	recentUserLogsLock.Lock()
-	defer recentUserLogsLock.Unlock()
-	// prepend
-	recentUserLogs = append([]UserLogEvent{event}, recentUserLogs...)
-	if len(recentUserLogs) > maxRecentLogs {
-		recentUserLogs = recentUserLogs[:maxRecentLogs]
+func (a *api) handleGetRecentLogs(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	recentUserLogs, err := a.userService.GetRecentLogs(ctx)
+	if err != nil {
+		return err
 	}
+	return a.respond(w, r, recentUserLogs)
 }
 
-func (a *api) emitUserLogEvent(userLogEvent UserLogEvent) {
+func (a *api) emitUserLogEvent(userLogEvent users.UserLogEvent) {
 	sseStr, err := formatServerSentEvent("user-log", userLogEvent)
 	if err != nil {
 		a.logger.Error("error formatting sse event", "error", err)

@@ -1,14 +1,11 @@
-package domain
+package rides
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	validation "github.com/go-ozzo/ozzo-validation"
 )
-
-var ErrCannotClaimNonAvailableRide = errors.New("cannot claim non-avaiable ride")
 
 type RideRequestState int
 
@@ -112,4 +109,8 @@ type RideRepository interface {
 	UpdateRequestState(context.Context, int64, RideRequestState) error
 	ClaimRequest(ctx context.Context, requestID int64, driverID int64) error
 	UpdateRideDirections(ctx context.Context, requestId int64, directionsVersion int, directions *ORSDirections, price int) error
+}
+
+type RouteServiceClient interface {
+	GetDirections(locations [][]float64) (*ORSDirections, error)
 }

@@ -1,4 +1,4 @@
-package domain
+package users
 
 import (
 	"context"
@@ -25,7 +25,6 @@ type UserRepository interface {
 	GetByID(context.Context, int64) (User, error)
 	GetByUserID(context.Context, string) (User, error)
 	GetSimulatedUsers(context.Context) ([]User, error)
-
 	CreateOrUpdate(context.Context, *User) error
 	Delete(context.Context, int64) error
 }
