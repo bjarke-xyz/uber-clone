@@ -2,6 +2,8 @@ package vehicles
 
 import (
 	"context"
+	"encoding/json"
+	"time"
 
 	"github.com/bjarke-xyz/uber-clone-backend/internal/core"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/core/users"
@@ -11,12 +13,14 @@ import (
 type VehicleService struct {
 	vehicleRepo VehicleRepository
 	userRepo    users.UserRepository
+	pubsub      core.Pubsub
 }
 
-func NewService(vehicleRepo VehicleRepository, userRepo users.UserRepository) *VehicleService {
+func NewService(vehicleRepo VehicleRepository, userRepo users.UserRepository, pubsub core.Pubsub) *VehicleService {
 	return &VehicleService{
 		vehicleRepo: vehicleRepo,
 		userRepo:    userRepo,
+		pubsub:      pubsub,
 	}
 }
 
@@ -101,6 +105,18 @@ func (a *VehicleService) UpdateVehiclePosition(ctx context.Context, userID strin
 	if err != nil {
 		return core.WrapErr(err)
 	}
-	// TODO: emit event that position was updated
+	event := VehiclePosition{
+		VehicleID:  vehicleId,
+		Lat:        input.Lat,
+		Lng:        input.Lng,
+		RecordedAt: time.Now(),
+		Bearing:    input.Bearing,
+		Speed:      input.Speed,
+	}
+	eventBytes, err := json.Marshal(event)
+	if err != nil {
+		return core.Errorw(core.EINTERNAL, err)
+	}
+	a.pubsub.Publish(ctx, TopicPositionUpdate, eventBytes)
 	return nil
 }

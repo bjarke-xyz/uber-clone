@@ -7,6 +7,10 @@ import (
 	validation "github.com/go-ozzo/ozzo-validation"
 )
 
+const (
+	TopicPositionUpdate = "position-update"
+)
+
 type Vehicle struct {
 	ID int64
 

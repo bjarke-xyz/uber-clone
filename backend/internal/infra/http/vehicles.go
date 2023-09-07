@@ -1,4 +1,4 @@
-package api
+package http
 
 import (
 	"bytes"
@@ -52,15 +52,6 @@ func (a *api) updateVehiclePositionHandler(ctx context.Context, w http.ResponseW
 				cancel()
 				return err
 			}
-			// TODO: move to event listener
-			a.emitPositionUpdateEvent(vehicles.VehiclePosition{
-				VehicleID:  vehicleId,
-				Lat:        input.Lat,
-				Lng:        input.Lng,
-				RecordedAt: time.Now(),
-				Bearing:    input.Bearing,
-				Speed:      input.Speed,
-			})
 			return nil
 		}()
 		if err != nil {
@@ -106,8 +97,28 @@ func (a *api) handleEvents(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (a *api) pubsubSubscribeVehicle(ctx context.Context) {
+	go func() {
+		ch := a.pubSub.Subscribe(vehicles.TopicPositionUpdate)
+		for {
+			select {
+			case msg := <-ch:
+				event := vehicles.VehiclePosition{}
+				err := json.Unmarshal(msg, &event)
+				if err != nil {
+					a.logger.Error("failed to unmarshal VehiclePosition", "error", err)
+				} else {
+					a.emitPositionUpdateEvent(event)
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+}
+
 func (a *api) emitPositionUpdateEvent(vehiclePos vehicles.VehiclePosition) error {
-	sseStr, err := formatServerSentEvent("position-update", vehiclePos)
+	sseStr, err := formatServerSentEvent(vehicles.TopicPositionUpdate, vehiclePos)
 	if err != nil {
 		return err
 	}
@@ -120,20 +131,14 @@ func formatServerSentEvent(event string, data any) (string, error) {
 	m := map[string]any{
 		"data": data,
 	}
-
 	buff := bytes.NewBuffer([]byte{})
-
 	encoder := json.NewEncoder(buff)
-
 	err := encoder.Encode(m)
 	if err != nil {
 		return "", err
 	}
-
 	sb := strings.Builder{}
-
 	sb.WriteString(fmt.Sprintf("event: %s\n", event))
 	sb.WriteString(fmt.Sprintf("data: %v\n\n", buff.String()))
-
 	return sb.String(), nil
 }

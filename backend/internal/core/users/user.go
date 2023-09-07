@@ -6,6 +6,10 @@ import (
 	validation "github.com/go-ozzo/ozzo-validation"
 )
 
+const (
+	TopicUserLog = "user-log"
+)
+
 type User struct {
 	ID int64 `json:"id"`
 

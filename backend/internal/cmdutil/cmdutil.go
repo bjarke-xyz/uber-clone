@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bjarke-xyz/uber-clone-backend/internal/repository"
+	"github.com/bjarke-xyz/uber-clone-backend/internal/infra/postgres"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -48,7 +48,7 @@ func NewDatabasePool(ctx context.Context, databaseUrl string, maxConns int) (*pg
 }
 
 func MigrateDb(databaseUrl string) error {
-	err := repository.Migrate("up", databaseUrl)
+	err := postgres.Migrate("up", databaseUrl)
 	if err != nil {
 		return fmt.Errorf("failed to migrate: %w", err)
 	}

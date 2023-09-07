@@ -4,16 +4,15 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"strconv"
 
-	apiPkg "github.com/bjarke-xyz/uber-clone-backend/internal/api"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/auth"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/cfg"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/cmdutil"
+	"github.com/bjarke-xyz/uber-clone-backend/internal/infra/http"
+	"github.com/bjarke-xyz/uber-clone-backend/internal/infra/pubsub"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/service"
 	"github.com/joho/godotenv"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -45,16 +44,13 @@ func APICmd(ctx context.Context) error {
 	defer conn.Close()
 	authClient := auth.NewAuthClient(conn)
 
-	api := apiPkg.NewAPI(ctx, logger, cfg, authClient, db, osrClient)
+	ps := pubsub.NewInMemoryPubsub()
+
+	api := http.NewAPI(ctx, logger, cfg, authClient, db, osrClient, ps)
 	srv := api.Server(port)
 
-	// metrics server
-	go func() {
-		mux := http.NewServeMux()
-		mux.Handle("/metrics", promhttp.Handler())
-		http.ListenAndServe(":9091", mux)
-	}()
-
+	go http.ServeMetrics(":9091")
+	go api.PubsubSubscribe(ctx)
 	go func() {
 		_ = srv.ListenAndServe()
 	}()

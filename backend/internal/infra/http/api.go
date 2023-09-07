@@ -1,4 +1,4 @@
-package api
+package http
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 	"github.com/bjarke-xyz/uber-clone-backend/internal/core/rides"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/core/users"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/core/vehicles"
-	"github.com/bjarke-xyz/uber-clone-backend/internal/repository"
+	"github.com/bjarke-xyz/uber-clone-backend/internal/infra/postgres"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -53,18 +53,20 @@ type api struct {
 	vehicleRepo vehicles.VehicleRepository
 	rideRepo    rides.RideRepository
 
+	pubSub core.Pubsub
+
 	broker *broker
 }
 
-func NewAPI(ctx context.Context, logger *slog.Logger, cfg *cfg.Cfg, authClient auth.AuthClient, pool *pgxpool.Pool, osrClient rides.RouteServiceClient) *api {
-	userRepo := repository.NewPostgresUser(pool)
-	vehicleRepo := repository.NewPostgresVehicle(pool)
-	rideRepo := repository.NewPostgresRide(pool)
+func NewAPI(ctx context.Context, logger *slog.Logger, cfg *cfg.Cfg, authClient auth.AuthClient, pool *pgxpool.Pool, osrClient rides.RouteServiceClient, pubSub core.Pubsub) *api {
+	userRepo := postgres.NewPostgresUser(pool)
+	vehicleRepo := postgres.NewPostgresVehicle(pool)
+	rideRepo := postgres.NewPostgresRide(pool)
 
 	paymentsService := payments.NewService()
 	rideService := rides.NewService(rideRepo, userRepo, osrClient, paymentsService)
-	userService := users.NewService(userRepo)
-	vehicleService := vehicles.NewService(vehicleRepo, userRepo)
+	userService := users.NewService(userRepo, pubSub)
+	vehicleService := vehicles.NewService(vehicleRepo, userRepo, pubSub)
 
 	broker := &broker{
 		Notifier:       make(chan []byte, 1),
@@ -85,6 +87,7 @@ func NewAPI(ctx context.Context, logger *slog.Logger, cfg *cfg.Cfg, authClient a
 		userRepo:        userRepo,
 		vehicleRepo:     vehicleRepo,
 		rideRepo:        rideRepo,
+		pubSub:          pubSub,
 		broker:          broker,
 	}
 }
@@ -92,11 +95,16 @@ func NewAPI(ctx context.Context, logger *slog.Logger, cfg *cfg.Cfg, authClient a
 func (a *api) Server(port int) *http.Server {
 	return &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
-		Handler: a.Routes(),
+		Handler: a.routes(),
 	}
 }
 
-func (a *api) Routes() *chi.Mux {
+func (a *api) PubsubSubscribe(ctx context.Context) {
+	go a.pubsubSubscribeVehicle(ctx)
+	go a.pubsubSubscribeUser(ctx)
+}
+
+func (a *api) routes() *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
@@ -137,21 +145,6 @@ func (a *api) Routes() *chi.Mux {
 	})
 
 	return r
-}
-
-type broker struct {
-
-	// Events are pushed to this channel by the main events-gathering routine
-	Notifier chan []byte
-
-	// New client connections
-	newClients chan chan []byte
-
-	// Closed client connections
-	closingClients chan chan []byte
-
-	// Client connections registry
-	clients map[chan []byte]bool
 }
 
 func (a *api) respond(w http.ResponseWriter, r *http.Request, data any) error {
@@ -233,6 +226,21 @@ func queryParamFloat(r *http.Request, key string) (float64, bool, error) {
 		return 0, true, core.Errorw(core.EINVALID, err)
 	}
 	return valueFloat, true, nil
+}
+
+type broker struct {
+
+	// Events are pushed to this channel by the main events-gathering routine
+	Notifier chan []byte
+
+	// New client connections
+	newClients chan chan []byte
+
+	// Closed client connections
+	closingClients chan chan []byte
+
+	// Client connections registry
+	clients map[chan []byte]bool
 }
 
 func (broker *broker) listen(logger *slog.Logger) {

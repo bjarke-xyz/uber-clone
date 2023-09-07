@@ -1,7 +1,8 @@
-package api
+package http
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 
 	"github.com/bjarke-xyz/uber-clone-backend/internal/core/users"
@@ -30,12 +31,10 @@ func (a *api) handlePostUserLog(ctx context.Context, w http.ResponseWriter, r *h
 	if err := decodeBody(r.Body, input); err != nil {
 		return err
 	}
-	userLogEvent, err := a.userService.AddUserLog(ctx, token.Subject, input)
+	_, err := a.userService.AddUserLog(ctx, token.Subject, input)
 	if err != nil {
 		return err
 	}
-	// TODO: Move to event listener
-	go a.emitUserLogEvent(userLogEvent)
 	return a.respondStatus(w, r, http.StatusAccepted, nil)
 }
 
@@ -48,11 +47,31 @@ func (a *api) handleGetRecentLogs(ctx context.Context, w http.ResponseWriter, r 
 }
 
 func (a *api) emitUserLogEvent(userLogEvent users.UserLogEvent) {
-	sseStr, err := formatServerSentEvent("user-log", userLogEvent)
+	sseStr, err := formatServerSentEvent(users.TopicUserLog, userLogEvent)
 	if err != nil {
 		a.logger.Error("error formatting sse event", "error", err)
 		return
 	}
 	bytes := []byte(sseStr)
 	a.broker.Notifier <- bytes
+}
+
+func (a *api) pubsubSubscribeUser(ctx context.Context) {
+	go func() {
+		ch := a.pubSub.Subscribe(users.TopicUserLog)
+		for {
+			select {
+			case msg := <-ch:
+				event := users.UserLogEvent{}
+				err := json.Unmarshal(msg, &event)
+				if err != nil {
+					a.logger.Error("failed to unmarshal UserLogEvent", "error", err)
+				} else {
+					a.emitUserLogEvent(event)
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 }

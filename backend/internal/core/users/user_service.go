@@ -2,6 +2,7 @@ package users
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 	"time"
 
@@ -10,11 +11,13 @@ import (
 
 type UserService struct {
 	userRepo UserRepository
+	pubsub   core.Pubsub
 }
 
-func NewService(userRepo UserRepository) *UserService {
+func NewService(userRepo UserRepository, pubsub core.Pubsub) *UserService {
 	return &UserService{
 		userRepo: userRepo,
+		pubsub:   pubsub,
 	}
 }
 
@@ -54,6 +57,11 @@ func (s *UserService) AddUserLog(ctx context.Context, userID string, input *Post
 		Message:   input.Message,
 		Timestamp: time.Now().UTC(),
 	}
+	eventBytes, err := json.Marshal(userLogEvent)
+	if err != nil {
+		return UserLogEvent{}, core.Errorw(core.EINTERNAL, err)
+	}
+	s.pubsub.Publish(ctx, TopicUserLog, eventBytes)
 	go storeUserLog(userLogEvent)
 	return userLogEvent, nil
 }
