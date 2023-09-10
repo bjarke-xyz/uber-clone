@@ -28,6 +28,7 @@ import { takeRight, sum } from "lodash";
 import { format, parseISO } from "date-fns";
 import markerIconPng from "leaflet/dist/images/marker-icon.png";
 import { Icon } from "leaflet";
+import Button from "@mui/joy/Button";
 
 const defaultIcon = new Icon({
   iconUrl: markerIconPng,
@@ -176,7 +177,7 @@ export function OverviewPage() {
   const [activeRide, setActiveRide] = useState<RideRequest | null>(null);
 
   const onActiveRideClickedHandler = (
-    e: React.MouseEvent<HTMLDivElement>,
+    e: React.MouseEvent,
     ride: RideRequest | null
   ) => {
     e.preventDefault();
@@ -196,45 +197,49 @@ export function OverviewPage() {
       <aside className="w-96 bg-blue-50">
         <SideSection title="Active rides" className="min-h-[28rem]">
           {ridesQuery?.data?.map((ride) => (
-            <div
-              onClick={(e) => onActiveRideClickedHandler(e, ride)}
-              key={ride.id}
-              className={`mb-4 p-2 bg-sky-100 hover:bg-sky-200 rounded-md cursor-pointer ${
-                activeRide?.id === ride.id ? "bg-sky-200" : ""
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex">
-                  <PersonIcon />
-                  <div className="ml-2 text-lg">
-                    {usersMap[ride.riderId]?.name ?? "Unknown user"}
+            <div key={ride.id} className="my-2">
+              <Button
+                onClick={(e) => onActiveRideClickedHandler(e, ride)}
+                size="lg"
+                fullWidth
+                variant={activeRide?.id === ride.id ? "soft" : "solid"}
+                // className={activeRide?.id === ride.id ? "bg-sky-200" : ""}
+              >
+                <div className="flex flex-col items-start flex-1">
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex max-w-[12rem]">
+                      <PersonIcon />
+                      <div className="ml-2 text-lg overflow-hidden whitespace-nowrap text-ellipsis">
+                        {usersMap[ride.riderId]?.name ?? "Unknown user"}
+                      </div>
+                    </div>
+                    <div className="flex self-end">
+                      <span>
+                        {ride.price / 100} {currencies[ride.currency]?.icon}
+                      </span>
+                      <span>&nbsp; &middot; &nbsp;</span>
+                      <span>
+                        {Math.ceil(
+                          sum(
+                            ride.directions?.routes?.map(
+                              (x) => x.summary.distance
+                            ) ?? []
+                          ) / 1000
+                        )}{" "}
+                        km
+                      </span>
+                    </div>
                   </div>
+                  {ride.driverId && (
+                    <div className="flex">
+                      <LocalTaxiIcon />
+                      <div className="ml-2 text-lg">
+                        {usersMap[ride.driverId]?.name ?? "Unknown user"}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="flex self-end">
-                  <span>
-                    {ride.price / 100} {currencies[ride.currency]?.icon}
-                  </span>
-                  <span>&nbsp; &middot; &nbsp;</span>
-                  <span>
-                    {Math.ceil(
-                      sum(
-                        ride.directions?.routes?.map(
-                          (x) => x.summary.distance
-                        ) ?? []
-                      ) / 1000
-                    )}{" "}
-                    km
-                  </span>
-                </div>
-              </div>
-              {ride.driverId && (
-                <div className="flex">
-                  <LocalTaxiIcon />
-                  <div className="ml-2 text-lg">
-                    {usersMap[ride.driverId]?.name ?? "Unknown user"}
-                  </div>
-                </div>
-              )}
+              </Button>
             </div>
           ))}
         </SideSection>
