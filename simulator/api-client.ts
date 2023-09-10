@@ -8,6 +8,8 @@ import {
   RideRequest,
   Vehicle,
 } from "./types";
+import { AuthClient } from "./proto-gen/proto/auth";
+import { credentials } from "@grpc/grpc-js";
 
 export class BackendApiClient {
   private user: User | null = null;
@@ -258,6 +260,16 @@ export class BackendApiClient {
     const auth = getAuth(app);
     const resp = await signInWithEmailAndPassword(auth, email, password);
     this.user = resp.user;
-    const idToken = await this.user.getIdToken();
+    // const idToken = await this.user.getIdToken();
+    // console.log(idToken);
   }
+}
+
+let authClient: AuthClient | null = null;
+export function getAuthClient(): AuthClient {
+  if (!authClient) {
+    const authUrl = process.env.AUTH_URL ?? "Missing AUTH_URL";
+    authClient = new AuthClient(authUrl, credentials.createInsecure());
+  }
+  return authClient;
 }

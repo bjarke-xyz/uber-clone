@@ -7,11 +7,14 @@ import { SimDriver } from "./driver";
 import { BackendApiClient } from "./api-client";
 import { SimUser } from "./types";
 import { SimRider } from "./rider";
+import { AuthClient } from "./proto-gen/proto/auth";
+import { credentials } from "@grpc/grpc-js";
+import { adminRouter } from "./admin-api";
+import { authMiddleware } from "./auth-middleware";
 
 dotenv.config();
 
 const backendApiBaseUrl = process.env.API_BASE_URL ?? "Missing API_BASE_URL";
-
 const app: Express = express();
 const port = process.env.PORT || 3000;
 
@@ -21,6 +24,8 @@ app.use(morgan("tiny"));
 app.get("/", async (req: Request, res: Response) => {
   res.send("Express + TypeScript Server");
 });
+
+app.use("/api/admin", authMiddleware("ADMIN"), adminRouter);
 
 app.listen(port, () => {
   console.log(`⚡️[server]: Server is running at http://localhost:${port}`);

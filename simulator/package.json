@@ -5,11 +5,13 @@
   "main": "index.js",
   "scripts": {
     "build": "npx tsc && cp -r data dist",
-    "dev": "npx tsc && cp -r data dist && node dist/index.js"
+    "dev": "npx tsc && cp -r data dist && node dist/index.js",
+    "codegen:buf": "cd proto && buf generate && cd .."
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@grpc/grpc-js": "^1.9.2",
     "@turf/turf": "^6.5.0",
     "@types/lodash": "^4.14.195",
     "cors": "^2.8.5",
@@ -26,6 +28,7 @@
     "@types/node": "^20.3.3",
     "@types/source-map-support": "^0.5.7",
     "source-map-support": "^0.5.21",
+    "ts-proto": "^1.157.0",
     "typescript": "^5.1.6"
   }
 }
