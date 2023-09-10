@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/bjarke-xyz/uber-clone-backend/internal/auth"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (a *api) firebaseJwtVerifier(next http.Handler) http.Handler {
@@ -21,7 +23,11 @@ func (a *api) firebaseJwtVerifier(next http.Handler) http.Handler {
 		token, err := a.authClient.ValidateToken(ctx, &auth.ValidateTokenRequest{Token: idTokenStr})
 		if err != nil {
 			a.logger.Warn("error validating token", "error", err)
-			http.Error(w, err.Error(), http.StatusUnauthorized)
+			if status.Code(err) == codes.Unavailable {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			} else {
+				http.Error(w, err.Error(), http.StatusUnauthorized)
+			}
 			return
 		}
 
