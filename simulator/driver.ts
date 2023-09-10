@@ -5,10 +5,12 @@ import {
   LatLng,
   RideRequest,
   RideRequestState,
+  SimRunner,
   Vehicle,
   getAngleInDegrees,
+  isAbortError,
 } from "./types";
-import { decodePolyline, randomIntFromInterval, wait } from "./util";
+import { decodePolyline, randomIntFromInterval } from "./util";
 
 export interface RouteStep {
   bearing: number;
@@ -17,28 +19,17 @@ export interface RouteStep {
   locations: LatLng[];
 }
 
-export class SimDriver {
-  // TODO: Adjustable dynamically
-  private timeMultiplier = 16;
-
+export class SimDriver extends SimRunner {
   private user: BackendUser | null = null;
-
   private currentLocation: LatLng | null = null;
 
-  constructor(
-    private apiClient: BackendApiClient,
-    private userEmail: string,
-    private userPassword: string
-  ) {}
-
-  private async log(message?: any, ...optionalParams: any[]) {
-    console.log(`${this.userEmail} [D] | ${message}`, ...optionalParams);
-    await this.apiClient.postLog({ tag: "D", message });
-  }
-
   public async run() {
+    if (this.running) {
+      return;
+    }
     try {
       await this.apiClient.signIn(this.userEmail, this.userPassword);
+      this.starting();
       const vehicle = await this.apiClient.getVehicle();
       this.user = await this.apiClient.getMyUser();
       if (!this.user) {
@@ -55,13 +46,18 @@ export class SimDriver {
           vehicle.lastRecordedPosition.lng
         );
       }
-      while (true) {
+      this.started();
+      while (this.running) {
         const randomWait = randomIntFromInterval(5, 15);
-        await wait(randomWait * 1000);
+        await this.wait(randomWait * 1000);
         await this.drive(vehicle);
       }
     } catch (error) {
-      console.error("Unexpected error in driver run", error);
+      if (!isAbortError(error)) {
+        console.error("Unexpected error in driver run", error);
+      }
+    } finally {
+      await this.stopped();
     }
   }
 
@@ -86,7 +82,7 @@ export class SimDriver {
       rideRequest = inProgressRides[0];
       await this.log(`Found in-progress driver ride request ${rideRequest.id}`);
     } else {
-      await wait(randomIntFromInterval(1, 5) * 1000);
+      await this.wait(randomIntFromInterval(1, 5) * 1000);
       const availableRideRequests =
         await this.apiClient.getAvailableRideRequests();
       if (availableRideRequests.length > 0) {
@@ -101,7 +97,7 @@ export class SimDriver {
           await this.log(
             `failed to claim ride request ${potentialRideRequest.id}, waiting 10s`
           );
-          await wait(10 * 1000);
+          await this.wait(10 * 1000);
         }
       }
     }
@@ -121,17 +117,19 @@ export class SimDriver {
           _currentLocation ? `${_currentLocation.toString()} ->` : ""
         } ${rideRequest.fromName} -> ${rideRequest.toName}`
       );
-      await this.move(vehicle, steps);
-      await this.apiClient.finishRideRequest(rideRequest.id);
-      await this.log("Finished ride, sleeping 25 seconds");
-      await wait(15 * 1000);
+      const finished = await this.move(vehicle, steps);
+      if (finished) {
+        await this.apiClient.finishRideRequest(rideRequest.id);
+        await this.log("Finished ride, sleeping 25 seconds");
+        await this.wait(15 * 1000);
+      }
     } else {
       await this.log("no ride requests found, waiting 10s");
-      await wait(10 * 1000);
+      await this.wait(10 * 1000);
     }
   }
 
-  private async move(vehicle: Vehicle, steps: RouteStep[]): Promise<void> {
+  private async move(vehicle: Vehicle, steps: RouteStep[]): Promise<boolean> {
     let prevLocation: LatLng | null = null;
     let bearing = 0;
     for (let i = 0; i < steps.length; i++) {
@@ -139,6 +137,9 @@ export class SimDriver {
       bearing = step.bearing;
       const secondsPerMeter = step.duration / step.distance;
       for (let j = 0; j < step.locations.length; j++) {
+        if (!this.running) {
+          return false;
+        }
         const location = step.locations[j];
         if (prevLocation) {
           const distance = prevLocation.distanceTo(location);
@@ -157,7 +158,7 @@ export class SimDriver {
             bearing,
             speedKmh
           );
-          await wait(waitMs);
+          await this.wait(waitMs);
         } else {
           await this.apiClient.updateLocation(
             vehicle.ID,
@@ -171,6 +172,7 @@ export class SimDriver {
         prevLocation = location;
       }
     }
+    return true;
   }
 
   private async getDirections(
@@ -184,7 +186,7 @@ export class SimDriver {
     while (!directions) {
       const sleepSeconds = randomIntFromInterval(30 * 1000, 90 * 1000);
       await this.log(`failed to get directions, sleeping ${sleepSeconds}s`);
-      await wait(sleepSeconds);
+      await this.wait(sleepSeconds);
       directions = await this.apiClient.getDirectionsV1(
         rideRequestId,
         startPoint

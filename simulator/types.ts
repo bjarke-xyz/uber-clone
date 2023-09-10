@@ -1,4 +1,6 @@
 import { Position, Units, distance } from "@turf/turf";
+import { BackendApiClient } from "./api-client";
+import { setTimeout } from "timers/promises";
 
 export interface DirectionsV1 {
   bbox: number[];
@@ -227,4 +229,67 @@ export function cityDataFeatureToNamedPoints(
 export interface PostLogInput {
   tag: string;
   message: string;
+}
+
+export type RunnerState = "STARTING" | "STARTED" | "STOPPING" | "STOPPED";
+export abstract class SimRunner {
+  protected timeMultiplier: number = 16;
+  protected running = false;
+  protected state: RunnerState = "STOPPED";
+  private timeout?: NodeJS.Timeout;
+  constructor(
+    protected abortController: AbortController,
+    protected apiClient: BackendApiClient,
+    protected userEmail: string,
+    protected userPassword: string,
+    protected tag: string
+  ) {}
+  public abstract run(): Promise<void>;
+  public setTimeMultiplier(timeMultiplier: number) {
+    this.timeMultiplier = timeMultiplier;
+  }
+  public setAbortController(abortController: AbortController) {
+    this.abortController = abortController;
+  }
+  public stop() {
+    this.log("stopping...");
+    this.running = false;
+    this.state = "STOPPING";
+    this.abortController.abort("STOP");
+  }
+  public async stopped(): Promise<void> {
+    this.state = "STOPPED";
+    this.log("stopped");
+  }
+  public async starting(): Promise<void> {
+    this.log("starting...");
+    this.state = "STARTING";
+    this.running = true;
+  }
+  public async started(): Promise<void> {
+    this.log("started");
+    this.state = "STARTED";
+  }
+
+  public getState() {
+    return this.state;
+  }
+  async wait(timeMs: number) {
+    await setTimeout(timeMs, null, { signal: this.abortController.signal });
+    // return new Promise((resolve) => {
+    //   setTimeout(timeMs, )
+    //   setTimeout(() => resolve(), timeMs);
+    // });
+  }
+  protected async log(message?: any, ...optionalParams: any[]) {
+    console.log(
+      `${this.userEmail} [${this.tag}] | ${message}`,
+      ...optionalParams
+    );
+    await this.apiClient.postLog({ tag: this.tag, message });
+  }
+}
+
+export function isAbortError(error: unknown): boolean {
+  return (error as any)?.code === "ABORT_ERR";
 }

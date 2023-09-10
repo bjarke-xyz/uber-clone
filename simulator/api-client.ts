@@ -10,6 +10,7 @@ import {
 } from "./types";
 import { AuthClient } from "./proto-gen/proto/auth";
 import { credentials } from "@grpc/grpc-js";
+import { urls } from "./util";
 
 export class BackendApiClient {
   private user: User | null = null;
@@ -268,8 +269,7 @@ export class BackendApiClient {
 let authClient: AuthClient | null = null;
 export function getAuthClient(): AuthClient {
   if (!authClient) {
-    const authUrl = process.env.AUTH_URL ?? "Missing AUTH_URL";
-    authClient = new AuthClient(authUrl, credentials.createInsecure());
+    authClient = new AuthClient(urls.authUrl, credentials.createInsecure());
   }
   return authClient;
 }

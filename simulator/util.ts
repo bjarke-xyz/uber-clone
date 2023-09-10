@@ -2,12 +2,6 @@ import path from "path";
 import { CityData } from "./types";
 import { readFile } from "fs/promises";
 
-export function wait(timeMs: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(), timeMs);
-  });
-}
-
 export function randomIntFromInterval(min: number, max: number) {
   // min and max included
   return Math.floor(Math.random() * (max - min + 1) + min);
@@ -79,3 +73,20 @@ export async function getCityData(city: string): Promise<CityData> {
   const cityData = JSON.parse(file) as CityData;
   return cityData;
 }
+
+class Urls {
+  private _backendApiBaseUrl: string = "missing API_BASE_URL";
+  private _authUrl: string = "missing AUTH_URL";
+  public get backendApiBaseUrl() {
+    return this._backendApiBaseUrl;
+  }
+  public get authUrl() {
+    return this._authUrl;
+  }
+  public load() {
+    this._backendApiBaseUrl =
+      process.env.API_BASE_URL ?? "Missing API_BASE_URL";
+    this._authUrl = process.env.AUTH_URL ?? "Missing AUTH_URL";
+  }
+}
+export const urls = new Urls();

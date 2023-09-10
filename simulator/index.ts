@@ -11,10 +11,12 @@ import { AuthClient } from "./proto-gen/proto/auth";
 import { credentials } from "@grpc/grpc-js";
 import { adminRouter } from "./admin-api";
 import { authMiddleware } from "./auth-middleware";
+import { simManager } from "./sim-manager";
+import { urls } from "./util";
 
 dotenv.config();
+urls.load();
 
-const backendApiBaseUrl = process.env.API_BASE_URL ?? "Missing API_BASE_URL";
 const app: Express = express();
 const port = process.env.PORT || 3000;
 
@@ -29,24 +31,8 @@ app.use("/api/admin", authMiddleware("ADMIN"), adminRouter);
 
 app.listen(port, () => {
   console.log(`⚡️[server]: Server is running at http://localhost:${port}`);
-  console.log(`using ${backendApiBaseUrl} as backend API`);
+  console.log(`using ${urls.backendApiBaseUrl} as backend API`);
 });
 
-const simUsersStr = process.env.SIM_USERS ?? "[]";
-const simUsers = JSON.parse(simUsersStr) as SimUser[];
-
-const simDrivers = simUsers
-  .filter((u) => !u.isRider)
-  .map((user) => {
-    const backendApiClient = new BackendApiClient(backendApiBaseUrl);
-    return new SimDriver(backendApiClient, user.email, user.password);
-  });
-simDrivers.forEach((driver) => driver.run());
-
-const simRiders = simUsers
-  .filter((u) => u.isRider)
-  .map((user) => {
-    const backendApiClient = new BackendApiClient(backendApiBaseUrl);
-    return new SimRider(backendApiClient, user.email, user.password, user.city);
-  });
-simRiders.forEach((rider) => rider.run());
+simManager.loadUsers();
+simManager.startAll();

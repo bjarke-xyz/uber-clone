@@ -5,52 +5,62 @@ import {
   NamedPoint,
   RideRequest,
   RideRequestState,
+  SimRunner,
   cityDataFeatureToNamedPoints,
+  isAbortError,
 } from "./types";
-import { getCityData, randomIntFromInterval, wait } from "./util";
+import { getCityData, randomIntFromInterval } from "./util";
 
-export class SimRider {
+export class SimRider extends SimRunner {
   private currentRideRequest: RideRequest | null = null;
 
   private currentFrom: NamedPoint | null = null;
   private currentTo: NamedPoint | null = null;
 
   constructor(
-    private apiClient: BackendApiClient,
-    private userEmail: string,
-    private userPassword: string,
+    abortController: AbortController,
+    apiClient: BackendApiClient,
+    userEmail: string,
+    userPassword: string,
+    tag: string,
     private city: string
-  ) {}
-  private async log(message?: any, ...optionalParams: any[]) {
-    console.log(`${this.userEmail} [R] | ${message}`, ...optionalParams);
-    await this.apiClient.postLog({ tag: "R", message });
+  ) {
+    super(abortController, apiClient, userEmail, userPassword, tag);
   }
-
   public async run() {
+    if (this.running) {
+      return;
+    }
     try {
       await this.apiClient.signIn(this.userEmail, this.userPassword);
+      this.starting();
       const myAvailableRides = await this.getAvailableRides();
       if (myAvailableRides.length > 0) {
         await this.initializeExistingRideRequest(myAvailableRides);
       }
 
-      while (true) {
+      this.started();
+      while (this.running) {
         if (this.needsRide()) {
           const randomPoints = await this.selectRandomPoints(this.currentTo, 2);
           if (randomPoints.length !== 2) {
             console.log("failed to get 2 random points, waiting 10s...");
-            await wait(10 * 1000);
+            await this.wait(10 * 1000);
             continue;
           }
           [this.currentFrom, this.currentTo] = randomPoints;
           await this.requestRide(this.currentFrom, this.currentTo);
         }
         const randomWait = randomIntFromInterval(5, 30);
-        await wait(randomWait * 1000);
+        await this.wait(randomWait * 1000);
         await this.updateRide();
       }
     } catch (error) {
-      console.error("Unexpected error in rider run", error);
+      if (!isAbortError(error)) {
+        console.error("Unexpected error in rider run", error);
+      }
+    } finally {
+      await this.stopped();
     }
   }
 
