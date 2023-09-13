@@ -1,8 +1,13 @@
 import { fetchEventSource } from "@microsoft/fetch-event-source";
+import LocalTaxiIcon from "@mui/icons-material/LocalTaxi";
 import PersonIcon from "@mui/icons-material/Person";
-import { useQuery } from "@tanstack/react-query";
-import L from "leaflet";
+import Button from "@mui/joy/Button";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { format, parseISO } from "date-fns";
+import L, { Icon } from "leaflet";
 import "leaflet-rotatedmarker";
+import markerIconPng from "leaflet/dist/images/marker-icon.png";
+import { sum, takeRight } from "lodash";
 import { PropsWithChildren, useEffect, useMemo, useRef, useState } from "react";
 import {
   MapContainer,
@@ -23,12 +28,9 @@ import {
   decodePolyline,
 } from "../api/backend";
 import "./OverviewPage.css";
-import LocalTaxiIcon from "@mui/icons-material/LocalTaxi";
-import { takeRight, sum } from "lodash";
-import { format, parseISO } from "date-fns";
-import markerIconPng from "leaflet/dist/images/marker-icon.png";
-import { Icon } from "leaflet";
-import Button from "@mui/joy/Button";
+import { useAtomValue } from "jotai";
+import { userAtom } from "../store/user";
+import { ButtonGroup } from "@mui/joy";
 
 const defaultIcon = new Icon({
   iconUrl: markerIconPng,
@@ -54,6 +56,8 @@ function SideSection(props: PropsWithChildren<SideSectionProps>) {
 const maxLogLines = 100;
 
 export function OverviewPage() {
+  const queryClient = useQueryClient();
+  const user = useAtomValue(userAtom);
   const mapRef = useRef<L.Map | null>(null);
 
   const logsDiv = useRef<HTMLDivElement | null>(null);
@@ -137,6 +141,23 @@ export function OverviewPage() {
     queryFn: backendApi.getRideRequests,
     refetchInterval: 5000,
   });
+
+  const simStatusQuery = useQuery({
+    queryKey: ["simStatus"],
+    queryFn: backendApi.getSimStatus,
+    refetchInterval: 10000,
+  });
+
+  async function handleStartSim() {
+    await backendApi.startSim();
+    queryClient.invalidateQueries(simStatusQuery);
+  }
+  async function handleStopSim() {
+    if (user) {
+      await backendApi.stopSim(user);
+      queryClient.invalidateQueries(simStatusQuery);
+    }
+  }
 
   useEffect(() => {
     const doSse = async () => {
@@ -263,6 +284,29 @@ export function OverviewPage() {
               </div>
             ))}
           </div>
+        </SideSection>
+        <SideSection title="Control" className="bg-slate-800 text-gray-50 h-96">
+          <ButtonGroup variant="solid">
+            <Button onClick={handleStartSim}>Start</Button>
+            <Button onClick={handleStopSim} disabled={!user}>
+              Stop
+            </Button>
+          </ButtonGroup>
+          {simStatusQuery?.data?.map((status) => (
+            <div
+              key={status.user?.id}
+              className={
+                activeRide
+                  ? activeRide.driverId === status.user?.id ||
+                    activeRide.riderId === status.user?.id
+                    ? "text-lime-200"
+                    : ""
+                  : ""
+              }
+            >
+              {status?.user?.name}: {status.state}
+            </div>
+          ))}
         </SideSection>
       </aside>
       <main className="h-[calc(100vh-3.5rem)] flex-1 bg-lime-100">

@@ -1,4 +1,7 @@
+import { User } from "firebase/auth";
+
 export const baseUrl = import.meta.env.VITE_API_BASE_URL;
+const simBaseUrl = import.meta.env.VITE_SIM_BASE_URL;
 
 export class BackendApi {
   async getVehicles(): Promise<Vehicle[]> {
@@ -20,8 +23,30 @@ export class BackendApi {
   async getCurrencies(): Promise<Currency[]> {
     return fetch(`${baseUrl}/v1/payments/currencies`).then((res) => res.json());
   }
+
+  async getSimStatus(): Promise<SimStatus[]> {
+    return fetch(`${simBaseUrl}/api/admin/status`).then((res) => res.json());
+  }
+  async startSim(): Promise<Response> {
+    return fetch(`${simBaseUrl}/api/admin/start`, { method: "POST" });
+  }
+  async stopSim(user: User): Promise<Response> {
+    return fetch(`${simBaseUrl}/api/admin/stop`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${await user.getIdToken()}`,
+      },
+    });
+  }
 }
 export const backendApi = new BackendApi();
+
+export interface SimStatus {
+  email: string;
+  user: BackendUser | null;
+  isRider: boolean;
+  state: "STARTING" | "STARTED" | "STOPPING" | "STOPPED";
+}
 
 export interface PositionEvent {
   data: {

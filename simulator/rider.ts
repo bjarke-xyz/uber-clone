@@ -32,7 +32,6 @@ export class SimRider extends SimRunner {
       return;
     }
     try {
-      await this.apiClient.signIn(this.userEmail, this.userPassword);
       this.starting();
       const myAvailableRides = await this.getAvailableRides();
       if (myAvailableRides.length > 0) {

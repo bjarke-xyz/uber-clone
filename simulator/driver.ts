@@ -20,7 +20,6 @@ export interface RouteStep {
 }
 
 export class SimDriver extends SimRunner {
-  private user: BackendUser | null = null;
   private currentLocation: LatLng | null = null;
 
   public async run() {
@@ -28,14 +27,8 @@ export class SimDriver extends SimRunner {
       return;
     }
     try {
-      await this.apiClient.signIn(this.userEmail, this.userPassword);
       this.starting();
       const vehicle = await this.apiClient.getVehicle();
-      this.user = await this.apiClient.getMyUser();
-      if (!this.user) {
-        await this.log("user not found");
-        return;
-      }
       if (!vehicle) {
         await this.log(`no vehicle found`);
         return;
@@ -64,7 +57,7 @@ export class SimDriver extends SimRunner {
   private async getMyInProgressRides(): Promise<RideRequest[]> {
     const rides = (await this.apiClient.getMyRides()).filter(
       (x) =>
-        x.driverId === this.user?.id &&
+        x.driverId === this.apiClient.getBackendUser()?.id &&
         (x.state === RideRequestState.Accepted ||
           x.state === RideRequestState.InProgress)
     );

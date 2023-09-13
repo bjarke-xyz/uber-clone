@@ -9,11 +9,9 @@ import {
   Typography,
 } from "@mui/joy";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { useSetAtom } from "jotai";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { firebaseAuth } from "../api/firebase";
-import { userAtom } from "../store/user";
 
 interface FormElements extends HTMLFormControlsCollection {
   email: HTMLInputElement;
@@ -25,7 +23,6 @@ interface SignInFormElement extends HTMLFormElement {
 
 export function LoginForm() {
   const navigate = useNavigate();
-  const setUser = useSetAtom(userAtom);
   const [error, setError] = useState<string>("");
   function onSubmit(event: React.FormEvent<SignInFormElement>) {
     event.preventDefault();
@@ -35,8 +32,7 @@ export function LoginForm() {
       password: formElements.password.value,
     };
     signInWithEmailAndPassword(firebaseAuth, data.email, data.password)
-      .then((userCredential) => {
-        // setUser(userCredential.user);
+      .then(() => {
         navigate("/");
       })
       .catch((error) => {

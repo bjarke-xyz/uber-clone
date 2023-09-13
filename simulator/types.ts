@@ -1,6 +1,7 @@
 import { Position, Units, distance } from "@turf/turf";
 import { BackendApiClient } from "./api-client";
 import { setTimeout } from "timers/promises";
+import { User } from "firebase/auth";
 
 export interface DirectionsV1 {
   bbox: number[];
@@ -236,14 +237,15 @@ export abstract class SimRunner {
   protected timeMultiplier: number = 16;
   protected running = false;
   protected state: RunnerState = "STOPPED";
-  private timeout?: NodeJS.Timeout;
   constructor(
     protected abortController: AbortController,
     protected apiClient: BackendApiClient,
     protected userEmail: string,
     protected userPassword: string,
     protected tag: string
-  ) {}
+  ) {
+    this.signIn();
+  }
   public abstract run(): Promise<void>;
   public setTimeMultiplier(timeMultiplier: number) {
     this.timeMultiplier = timeMultiplier;
@@ -251,7 +253,13 @@ export abstract class SimRunner {
   public setAbortController(abortController: AbortController) {
     this.abortController = abortController;
   }
+  public async signIn(): Promise<void> {
+    this.apiClient.signIn(this.userEmail, this.userPassword);
+  }
   public stop() {
+    if (this.state === "STOPPED" || this.state === "STOPPING") {
+      return;
+    }
     this.log("stopping...");
     this.running = false;
     this.state = "STOPPING";
@@ -274,12 +282,11 @@ export abstract class SimRunner {
   public getState() {
     return this.state;
   }
+  public getUser(): BackendUser | null {
+    return this.apiClient.getBackendUser();
+  }
   async wait(timeMs: number) {
     await setTimeout(timeMs, null, { signal: this.abortController.signal });
-    // return new Promise((resolve) => {
-    //   setTimeout(timeMs, )
-    //   setTimeout(() => resolve(), timeMs);
-    // });
   }
   protected async log(message?: any, ...optionalParams: any[]) {
     console.log(

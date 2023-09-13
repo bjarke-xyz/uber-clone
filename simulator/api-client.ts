@@ -14,6 +14,7 @@ import { urls } from "./util";
 
 export class BackendApiClient {
   private user: User | null = null;
+  private backendUser: BackendUser | null = null;
   constructor(private baseUrl: string) {}
 
   async postLog(input: PostLogInput): Promise<void> {
@@ -261,8 +262,15 @@ export class BackendApiClient {
     const auth = getAuth(app);
     const resp = await signInWithEmailAndPassword(auth, email, password);
     this.user = resp.user;
+    this.backendUser = await this.getMyUser();
     // const idToken = await this.user.getIdToken();
     // console.log(idToken);
+  }
+  public getUserId(): string | null {
+    return this.user?.uid ?? null;
+  }
+  public getBackendUser(): BackendUser | null {
+    return this.backendUser ?? null;
   }
 }
 

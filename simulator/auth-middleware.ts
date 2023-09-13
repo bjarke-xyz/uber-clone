@@ -1,7 +1,8 @@
 import { NextFunction, Request, Response } from "express";
 import { getAuthClient } from "./api-client";
 import { AuthToken } from "./proto-gen/proto/auth";
-export function authMiddleware(role: string) {
+type AuthRole = "ADMIN";
+export function authMiddleware(role: AuthRole) {
   return (req: Request, res: Response, next: NextFunction) => {
     const authorizationHeader = req.headers["authorization"];
     if (!authorizationHeader) {
