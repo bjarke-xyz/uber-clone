@@ -67,7 +67,7 @@ export const decodePolyline = (
 };
 
 export async function getCityData(city: string): Promise<CityData> {
-  const resource = `${city}_clean.geojson`;
+  const resource = `${city.toLowerCase()}_clean.geojson`;
   const url = path.resolve(__dirname, `./data/random-city-data/${resource}`);
   const file = await readFile(url, { encoding: "utf-8" });
   const cityData = JSON.parse(file) as CityData;
