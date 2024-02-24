@@ -20,6 +20,10 @@ func (a *api) firebaseJwtVerifier(next http.Handler) http.Handler {
 
 		ctx := r.Context()
 
+		_, err := http.Get(a.cfg.AuthWebUrl)
+		if err != nil {
+			a.logger.Warn("error pinging auth", "error", err)
+		}
 		token, err := a.authClient.ValidateToken(ctx, &auth.ValidateTokenRequest{Token: idTokenStr})
 		if err != nil {
 			a.logger.Warn("error validating token", "error", err)
