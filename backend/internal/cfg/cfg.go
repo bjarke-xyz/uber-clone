@@ -8,8 +8,6 @@ type Cfg struct {
 	OSRApiKey                 string
 	DatabaseConnectionPoolUrl string
 	FirebaseProjectId         string
-	AuthGrpcUrl               string
-	AuthWebUrl                string
 }
 
 func NewConfig() *Cfg {
@@ -19,8 +17,6 @@ func NewConfig() *Cfg {
 		OSRApiKey:                 os.Getenv("OSR_API_KEY"),
 		DatabaseConnectionPoolUrl: os.Getenv("DATABASE_CONNECTION_POOL_URL"),
 		FirebaseProjectId:         os.Getenv("FIREBASE_PROJECT_ID"),
-		AuthGrpcUrl:               os.Getenv("AUTH_GRPC_URL"),
-		AuthWebUrl:                os.Getenv("AUTH_WEB_URL"),
 	}
 	return cfg
 }

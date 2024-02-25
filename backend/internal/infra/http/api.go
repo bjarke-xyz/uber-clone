@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/bjarke-xyz/uber-clone-backend/internal/auth"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/cfg"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/core"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/core/payments"
@@ -42,8 +41,6 @@ type api struct {
 	logger *slog.Logger
 	cfg    *cfg.Cfg
 
-	authClient auth.AuthClient
-
 	paymentsService *payments.PaymentsService
 	rideService     *rides.RideService
 	userService     *users.UserService
@@ -58,7 +55,7 @@ type api struct {
 	broker *broker
 }
 
-func NewAPI(ctx context.Context, logger *slog.Logger, cfg *cfg.Cfg, authClient auth.AuthClient, pool *pgxpool.Pool, osrClient rides.RouteServiceClient, pubSub core.Pubsub) *api {
+func NewAPI(ctx context.Context, logger *slog.Logger, cfg *cfg.Cfg, pool *pgxpool.Pool, osrClient rides.RouteServiceClient, pubSub core.Pubsub) *api {
 	userRepo := postgres.NewPostgresUser(pool)
 	vehicleRepo := postgres.NewPostgresVehicle(pool)
 	rideRepo := postgres.NewPostgresRide(pool)
@@ -79,7 +76,6 @@ func NewAPI(ctx context.Context, logger *slog.Logger, cfg *cfg.Cfg, authClient a
 	return &api{
 		logger:          logger,
 		cfg:             cfg,
-		authClient:      authClient,
 		paymentsService: paymentsService,
 		rideService:     rideService,
 		userService:     userService,

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/bjarke-xyz/uber-clone-backend/internal/auth"
+	"github.com/bjarke-xyz/auth/pkg/jwt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -20,11 +20,11 @@ func (a *api) firebaseJwtVerifier(next http.Handler) http.Handler {
 
 		ctx := r.Context()
 
-		_, err := http.Get(a.cfg.AuthWebUrl)
-		if err != nil {
-			a.logger.Warn("error pinging auth", "error", err)
+		validateTokenRequest := jwt.ValidateTokenRequest{
+			Token:    idTokenStr,
+			Audience: a.cfg.FirebaseProjectId,
 		}
-		token, err := a.authClient.ValidateToken(ctx, &auth.ValidateTokenRequest{Token: idTokenStr})
+		token, err := jwt.ValidateToken(ctx, validateTokenRequest)
 		if err != nil {
 			a.logger.Warn("error validating token", "error", err)
 			if status.Code(err) == codes.Unavailable {
@@ -47,14 +47,14 @@ type contextKey struct {
 	name string
 }
 
-func NewContext(ctx context.Context, t *auth.AuthToken, err error) context.Context {
+func NewContext(ctx context.Context, t jwt.AuthToken, err error) context.Context {
 	ctx = context.WithValue(ctx, TokenCtxKey, t)
 	ctx = context.WithValue(ctx, ErrorCtxKey, err)
 	return ctx
 }
 
-func TokenFromContext(ctx context.Context) (*auth.AuthToken, error) {
-	token, _ := ctx.Value(TokenCtxKey).(*auth.AuthToken)
+func TokenFromContext(ctx context.Context) (jwt.AuthToken, error) {
+	token, _ := ctx.Value(TokenCtxKey).(jwt.AuthToken)
 	var err error
 	err, _ = ctx.Value(ErrorCtxKey).(error)
 	return token, err
