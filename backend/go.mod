@@ -1,6 +1,6 @@
 module github.com/bjarke-xyz/uber-clone-backend
 
-go 1.21
+go 1.22
 
 require (
 	github.com/bjarke-xyz/auth v0.0.0-20240225084546-070a95bf0851
