@@ -1,5 +1,5 @@
 import express from "express";
-import { authMiddleware, getAuthToken } from "./auth-middleware";
+import { authMiddleware } from "./auth-middleware";
 import { simManager } from "./sim-manager";
 
 export const adminRouter = express.Router();

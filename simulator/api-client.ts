@@ -8,7 +8,6 @@ import {
   RideRequest,
   Vehicle,
 } from "./types";
-import { AuthClient } from "./proto-gen/proto/auth";
 import { credentials } from "@grpc/grpc-js";
 import { urls } from "./util";
 
@@ -272,12 +271,4 @@ export class BackendApiClient {
   public getBackendUser(): BackendUser | null {
     return this.backendUser ?? null;
   }
-}
-
-let authClient: AuthClient | null = null;
-export function getAuthClient(): AuthClient {
-  if (!authClient) {
-    authClient = new AuthClient(urls.authUrl, credentials.createInsecure());
-  }
-  return authClient;
 }
