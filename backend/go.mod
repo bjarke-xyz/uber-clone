@@ -8,7 +8,7 @@ require (
 	github.com/go-chi/cors v1.2.1
 	github.com/go-ozzo/ozzo-validation v3.6.0+incompatible
 	github.com/golang-migrate/migrate/v4 v4.16.2
-	github.com/jackc/pgx/v5 v5.4.1
+	github.com/jackc/pgx/v5 v5.5.4
 	github.com/joho/godotenv v1.5.1
 	github.com/prometheus/client_golang v1.16.0
 	github.com/samber/lo v1.38.1
@@ -27,7 +27,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
-	github.com/jackc/puddle/v2 v2.2.0 // indirect
+	github.com/jackc/puddle/v2 v2.2.1 // indirect
 	github.com/lib/pq v1.10.2 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
