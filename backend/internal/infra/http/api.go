@@ -147,7 +147,7 @@ func (a *api) respond(w http.ResponseWriter, r *http.Request, data any) error {
 	return a.respondStatus(w, r, http.StatusOK, data)
 }
 
-func (a *api) respondStatus(w http.ResponseWriter, r *http.Request, status int, data any) error {
+func (a *api) respondStatus(w http.ResponseWriter, _ *http.Request, status int, data any) error {
 	if data != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(status)
