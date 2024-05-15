@@ -99,7 +99,7 @@ func (a *api) handleEvents(w http.ResponseWriter, r *http.Request) {
 
 func (a *api) pubsubSubscribeVehicle(ctx context.Context) {
 	go func() {
-		ch := a.pubSub.Subscribe(vehicles.TopicPositionUpdate)
+		ch := a.pubSub.SubscribeBytes(vehicles.TopicPositionUpdate)
 		for {
 			select {
 			case msg := <-ch:

@@ -2,6 +2,8 @@ package pubsub
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"sync"
 
 	"github.com/bjarke-xyz/uber-clone-backend/internal/core"
@@ -21,8 +23,8 @@ func NewInMemoryPubsub() core.Pubsub {
 	}
 }
 
-// Subscribe implements core.Pubsub.
-func (ps *InMemoryPubsub) Subscribe(topic string) <-chan []byte {
+// SubscribeBytes implements core.Pubsub.
+func (ps *InMemoryPubsub) SubscribeBytes(topic string) <-chan []byte {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
@@ -31,8 +33,13 @@ func (ps *InMemoryPubsub) Subscribe(topic string) <-chan []byte {
 	return ch
 }
 
-// Publish implements core.Pubsub.
-func (ps *InMemoryPubsub) Publish(ctx context.Context, topic string, msg []byte) {
+// Subscribe implements core.Pubsub.
+func (ps *InMemoryPubsub) Subscribe(topic string) <-chan any {
+	panic("lol")
+}
+
+// PublishBytes implements core.Pubsub.
+func (ps *InMemoryPubsub) PublishBytes(ctx context.Context, topic string, msg []byte) {
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
 
@@ -43,6 +50,15 @@ func (ps *InMemoryPubsub) Publish(ctx context.Context, topic string, msg []byte)
 	for _, ch := range ps.subs[topic] {
 		ch <- msg
 	}
+}
+
+func (ps *InMemoryPubsub) Publish(ctx context.Context, topic string, msg any) error {
+	bytes, err := json.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("failed to marshal msg: %w", err)
+	}
+	ps.PublishBytes(ctx, topic, bytes)
+	return nil
 }
 
 // Close implements core.Pubsub.

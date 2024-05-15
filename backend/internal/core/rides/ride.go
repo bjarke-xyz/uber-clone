@@ -10,6 +10,10 @@ import (
 type RideRequestState int
 
 const (
+	TopicRideFinished = "ride-finished"
+)
+
+const (
 	RiderRequestStateAvailable RideRequestState = iota
 	RiderRequestStateAccepted
 	RiderRequestStateInProgress
@@ -113,4 +117,8 @@ type RideRepository interface {
 
 type RouteServiceClient interface {
 	GetDirections(locations [][]float64) (*ORSDirections, error)
+}
+
+type RideFinishedEvent struct {
+	RideId int64
 }

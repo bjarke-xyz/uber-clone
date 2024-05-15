@@ -2,7 +2,6 @@ package vehicles
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 
 	"github.com/bjarke-xyz/uber-clone-backend/internal/core"
@@ -113,10 +112,9 @@ func (a *VehicleService) UpdateVehiclePosition(ctx context.Context, userID strin
 		Bearing:    input.Bearing,
 		Speed:      input.Speed,
 	}
-	eventBytes, err := json.Marshal(event)
+	err = a.pubsub.Publish(ctx, TopicPositionUpdate, event)
 	if err != nil {
 		return core.Errorw(core.EINTERNAL, err)
 	}
-	a.pubsub.Publish(ctx, TopicPositionUpdate, eventBytes)
 	return nil
 }

@@ -1,10 +1,21 @@
 package payments
 
+import (
+	"log/slog"
+
+	"github.com/bjarke-xyz/uber-clone-backend/internal/core"
+)
+
 type PaymentsService struct {
+	pubsub core.Pubsub
+	logger *slog.Logger
 }
 
-func NewService() *PaymentsService {
-	return &PaymentsService{}
+func NewService(pubsub core.Pubsub, logger *slog.Logger) *PaymentsService {
+	return &PaymentsService{
+		pubsub: pubsub,
+		logger: logger,
+	}
 }
 
 func (s *PaymentsService) CalculatePrice(distanceInMeters int) int {

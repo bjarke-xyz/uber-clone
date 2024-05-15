@@ -8,6 +8,7 @@ import (
 	"github.com/bjarke-xyz/uber-clone-backend/internal/cfg"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/cmdutil"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/infra/http"
+	"github.com/bjarke-xyz/uber-clone-backend/internal/infra/logging"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/infra/pubsub"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/service"
 	"github.com/joho/godotenv"
@@ -20,7 +21,7 @@ func APICmd(ctx context.Context) error {
 	if cfg.Port != "" {
 		port, _ = strconv.Atoi(cfg.Port)
 	}
-	logger := cmdutil.NewLogger("api", cfg.Env)
+	logger := logging.NewLogger("api", cfg.Env)
 
 	db, err := cmdutil.NewDatabasePool(ctx, cfg.DatabaseConnectionPoolUrl, 16)
 	if err != nil {

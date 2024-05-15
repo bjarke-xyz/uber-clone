@@ -16,6 +16,7 @@ import (
 	"github.com/bjarke-xyz/uber-clone-backend/internal/core/rides"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/core/users"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/core/vehicles"
+	"github.com/bjarke-xyz/uber-clone-backend/internal/infra/logging"
 	"github.com/bjarke-xyz/uber-clone-backend/internal/infra/postgres"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -60,8 +61,8 @@ func NewAPI(ctx context.Context, logger *slog.Logger, cfg *cfg.Cfg, pool *pgxpoo
 	vehicleRepo := postgres.NewPostgresVehicle(pool)
 	rideRepo := postgres.NewPostgresRide(pool)
 
-	paymentsService := payments.NewService()
-	rideService := rides.NewService(rideRepo, userRepo, osrClient, paymentsService)
+	paymentsService := payments.NewService(pubSub, logging.LoggerFor(logger, "payments"))
+	rideService := rides.NewService(rideRepo, userRepo, osrClient, paymentsService, pubSub, logging.LoggerFor(logger, "rides"))
 	userService := users.NewService(userRepo, pubSub)
 	vehicleService := vehicles.NewService(vehicleRepo, userRepo, pubSub)
 
@@ -98,6 +99,7 @@ func (a *api) Server(port int) *http.Server {
 func (a *api) PubsubSubscribe(ctx context.Context) {
 	go a.pubsubSubscribeVehicle(ctx)
 	go a.pubsubSubscribeUser(ctx)
+	go a.rideService.PubSubSubscribePayments(ctx)
 }
 
 func (a *api) routes() *chi.Mux {

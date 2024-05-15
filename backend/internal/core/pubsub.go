@@ -3,7 +3,9 @@ package core
 import "context"
 
 type Pubsub interface {
-	Subscribe(topic string) <-chan []byte
-	Publish(ctx context.Context, topic string, msg []byte)
+	SubscribeBytes(topic string) <-chan []byte
+	Subscribe(topic string) <-chan any
+	PublishBytes(ctx context.Context, topic string, msg []byte)
+	Publish(ctx context.Context, topic string, msg any) error
 	Close()
 }

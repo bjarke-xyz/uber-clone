@@ -58,7 +58,7 @@ func (a *api) emitUserLogEvent(userLogEvent users.UserLogEvent) {
 
 func (a *api) pubsubSubscribeUser(ctx context.Context) {
 	go func() {
-		ch := a.pubSub.Subscribe(users.TopicUserLog)
+		ch := a.pubSub.SubscribeBytes(users.TopicUserLog)
 		for {
 			select {
 			case msg := <-ch:

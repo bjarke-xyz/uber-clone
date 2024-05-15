@@ -3,8 +3,6 @@ package cmdutil
 import (
 	"context"
 	"fmt"
-	"log/slog"
-	"os"
 	"strings"
 	"time"
 
@@ -12,12 +10,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-func NewLogger(service string, env string) *slog.Logger {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	child := logger.With(slog.Group("service_info", slog.String("env", env), slog.String("service", service)))
-	return child
-}
 
 func NewDatabasePool(ctx context.Context, databaseUrl string, maxConns int) (*pgxpool.Pool, error) {
 	if maxConns == 0 {

@@ -17,6 +17,8 @@ type User struct {
 	Simulated bool   `json:"simulated"`
 	// Firebase auth info
 	UserID string `json:"userId"`
+
+	StripeCustomerId string `json:"-"`
 }
 
 func (u *User) Validate() error {

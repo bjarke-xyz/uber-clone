@@ -2,6 +2,9 @@ package rides
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"log/slog"
 	"math"
 	"time"
 
@@ -17,14 +20,18 @@ type RideService struct {
 	userRepo           users.UserRepository
 	routeServiceClient RouteServiceClient
 	paymentsService    *payments.PaymentsService
+	pubsub             core.Pubsub
+	logger             *slog.Logger
 }
 
-func NewService(rideRepo RideRepository, userRepo users.UserRepository, routeServiceClient RouteServiceClient, paymentsService *payments.PaymentsService) *RideService {
+func NewService(rideRepo RideRepository, userRepo users.UserRepository, routeServiceClient RouteServiceClient, paymentsService *payments.PaymentsService, pubsub core.Pubsub, logger *slog.Logger) *RideService {
 	return &RideService{
 		rideRepo:           rideRepo,
 		userRepo:           userRepo,
 		routeServiceClient: routeServiceClient,
 		paymentsService:    paymentsService,
+		pubsub:             pubsub,
+		logger:             logger,
 	}
 }
 
@@ -176,7 +183,32 @@ func (r *RideService) FinishRide(ctx context.Context, userID string, rideRequest
 	if err != nil {
 		return core.Errorw(core.EINTERNAL, err)
 	}
+
+	err = r.pubsub.Publish(ctx, TopicRideFinished, RideFinishedEvent{RideId: rideReq.ID})
+	if err != nil {
+		return core.Errorw(core.EINTERNAL, err)
+	}
 	return nil
+}
+
+func (r *RideService) ChargeUserForRide(ctx context.Context, event RideFinishedEvent) error {
+	ride, err := r.rideRepo.GetByID(ctx, event.RideId)
+	if err != nil {
+		return fmt.Errorf("failed to get ride by id %s: %w", event.RideId, err)
+	}
+	user, err := r.userRepo.GetByID(ctx, ride.RiderID)
+	if err != nil {
+		return fmt.Errorf("failed to get user by id %s: %w", ride.RiderID, err)
+	}
+
+}
+
+func (r *RideService) HandleRideFinishedEvent(ctx context.Context, event RideFinishedEvent) {
+	err := r.ChargeUserForRide(ctx, event)
+	if err != nil {
+		// TODO: This should be handled differently, not just logged
+		r.logger.Error("failed to charge user for ride", "rideId", event.RideId, "error", err)
+	}
 }
 
 func (r *RideService) GetSimulatedRides(ctx context.Context) ([]RideRequest, error) {
@@ -191,4 +223,24 @@ func (r *RideService) GetSimulatedRides(ctx context.Context) ([]RideRequest, err
 		return []RideRequest{}, core.Errorw(core.EINTERNAL, err)
 	}
 	return rides, nil
+}
+
+func (s *RideService) PubSubSubscribePayments(ctx context.Context) {
+	go func() {
+		ch := s.pubsub.SubscribeBytes(TopicRideFinished)
+		for {
+			select {
+			case msg := <-ch:
+				event := RideFinishedEvent{}
+				err := json.Unmarshal(msg, &event)
+				if err != nil {
+					s.logger.Error("failed to unmarshal event", "topic", TopicRideFinished, "error", err)
+				} else {
+					s.logger.Info("received ride finished event", "rideId", event.RideId)
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 }

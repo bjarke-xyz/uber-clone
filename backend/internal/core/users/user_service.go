@@ -2,7 +2,6 @@ package users
 
 import (
 	"context"
-	"encoding/json"
 	"sync"
 	"time"
 
@@ -57,11 +56,10 @@ func (s *UserService) AddUserLog(ctx context.Context, userID string, input *Post
 		Message:   input.Message,
 		Timestamp: time.Now().UTC(),
 	}
-	eventBytes, err := json.Marshal(userLogEvent)
+	err = s.pubsub.Publish(ctx, TopicUserLog, userLogEvent)
 	if err != nil {
 		return UserLogEvent{}, core.Errorw(core.EINTERNAL, err)
 	}
-	s.pubsub.Publish(ctx, TopicUserLog, eventBytes)
 	go storeUserLog(userLogEvent)
 	return userLogEvent, nil
 }
